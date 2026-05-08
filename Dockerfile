@@ -80,7 +80,11 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Install Redis PHP extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Add build dependencies temporarily to compile the extension
+RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
