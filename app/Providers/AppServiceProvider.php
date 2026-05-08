@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
         // Use Tailwind CSS pagination views
         Paginator::useTailwind();
 
-        // Schema string length for MySQL utf8mb4 compatibility
+        // Schema string length for MySQL utf8mb4 compatibility (PostgreSQL doesn't need this)
         if (config('database.default') === 'mysql') {
             \Illuminate\Support\Facades\Schema::defaultStringLength(191);
         }

@@ -12,10 +12,10 @@ class ValidateEnvironment extends Command
     private array $required = [
         'APP_KEY'       => 'Generate with: php artisan key:generate',
         'APP_URL'       => 'Your Railway app URL e.g. https://xxx.up.railway.app',
-        'DB_HOST'       => 'MySQL host from Railway MySQL service',
-        'DB_DATABASE'   => 'MySQL database from Railway MySQL service',
-        'DB_USERNAME'   => 'MySQL username from Railway MySQL service',
-        'DB_PASSWORD'   => 'MySQL password from Railway MySQL service',
+        'DB_HOST'       => 'PostgreSQL host from Railway PostgreSQL service',
+        'DB_DATABASE'   => 'PostgreSQL database from Railway PostgreSQL service',
+        'DB_USERNAME'   => 'PostgreSQL username from Railway PostgreSQL service',
+        'DB_PASSWORD'   => 'PostgreSQL password from Railway PostgreSQL service',
         'REDIS_HOST'    => 'Redis host from Railway Redis service',
     ];
 
