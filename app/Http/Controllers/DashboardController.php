@@ -14,19 +14,19 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        $currentMonth = now()->format('m'); // e.g. "05"
+        $currentMonth = now()->month; // e.g. 5
         $startOfWeek  = now()->startOfWeek()->toDateTimeString();
 
-        // SQLite-compatible aggregated query (no MONTH() function)
+        // PostgreSQL-compatible aggregated query
         $stats = Order::where('user_id', $user->id)
             ->selectRaw("
                 COUNT(*)                                                        AS total_orders,
-                SUM(status IN ('pending','in progress'))                        AS pending_orders,
-                SUM(status = 'in progress')                                     AS processing_orders,
-                SUM(status = 'completed')                                       AS completed_orders,
-                SUM(created_at >= ?)                                            AS orders_this_week,
+                SUM(CASE WHEN status IN ('pending','in progress') THEN 1 ELSE 0 END) AS pending_orders,
+                SUM(CASE WHEN status = 'in progress' THEN 1 ELSE 0 END)          AS processing_orders,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)            AS completed_orders,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END)                 AS orders_this_week,
                 SUM(CASE WHEN status = 'completed'
-                         AND strftime('%m', created_at) = ?
+                         AND EXTRACT(MONTH FROM created_at) = ?
                          THEN total ELSE 0 END)                                 AS spent_month
             ", [
                 $startOfWeek,
