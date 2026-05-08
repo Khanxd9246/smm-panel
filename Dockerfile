@@ -94,6 +94,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Default port fallback for environments that don't provide PORT
+ENV PORT=8080
+
 # ── PHP Configuration ─────────────────────────────────────────────────────────
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf

@@ -15,6 +15,10 @@ class ServeCommand extends BaseServeCommand
     {
         $port = $this->input->getOption('port');
 
-        return is_null($port) ? 8000 : (int) $port;
+        if (is_null($port) || $port === '') {
+            $port = env('PORT', 8080);
+        }
+
+        return is_numeric($port) ? (int) $port : 8080;
     }
 }
