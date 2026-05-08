@@ -31,9 +31,14 @@ RUN if [ -f package-lock.json ]; then \
 
 COPY . .
 
-# Force-write clean asset files to bypass any local corruption
-RUN echo -e "@tailwind base;\n@tailwind components;\n@tailwind utilities;" > resources/css/app.css && \
-    echo -e "import './bootstrap';\nimport Alpine from 'alpinejs';\nwindow.Alpine = Alpine;\nAlpine.start();" > resources/js/app.js
+# ── FORCED CLEANUP: Replace literal \n with real newlines ──
+# This ensures PostCSS never sees the "Unknown word \n" error again.
+RUN sed -i 's/\\n/\n/g' resources/css/app.css && \
+    sed -i 's/\\"/"/g' resources/css/app.css && \
+    sed -i 's/^"//;s/"$//' resources/css/app.css && \
+    sed -i 's/\\n/\n/g' resources/js/app.js && \
+    sed -i 's/\\"/"/g' resources/js/app.js && \
+    sed -i 's/^"//;s/"$//' resources/js/app.js
 
 RUN npm run build
 
