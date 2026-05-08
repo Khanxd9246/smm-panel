@@ -79,6 +79,9 @@ RUN apk add --no-cache \
         opcache \
     && rm -rf /var/cache/apk/*
 
+# Create a symlink so 'php-fpm8.2' always points to the installed php-fpm
+RUN ln -s $(which php-fpm) /usr/sbin/php-fpm8.2 || ln -s $(which php-fpm8.2) /usr/sbin/php-fpm8.2
+
 # Install Redis PHP extension
 # Add build dependencies temporarily to compile the extension
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
