@@ -117,11 +117,24 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-# ── Permissions ───────────────────────────────────────────────────────────────
-# www-data owns storage and cache — PHP-FPM runs as www-data
-RUN chown -R www-data:www-data /var/www/html \
-    && find /var/www/html/storage -type d -exec chmod 775 {} \; \
-    && find /var/www/html/bootstrap/cache -type d -exec chmod 775 {} \;
+# --- Stage: Ensure framework storage directories exist ---
+# We create these because git usually ignores empty storage folders
+RUN mkdir -p \
+    storage/framework/views \
+    storage/framework/sessions \
+    storage/framework/cache/data \
+    bootstrap/cache
+
+# --- Stage: Permissions ---
+# 1. Set the owner to www-data (the web server user)
+RUN chown -R www-data:www-data /var/www/html
+
+# 2. Set directory permissions so Laravel can write cache and sessions
+RUN find /var/www/html/storage -type d -exec chmod 775 {} \;
+RUN find /var/www/html/bootstrap/cache -type d -exec chmod 775 {} \;
+
+# 3. Set file permissions
+RUN find /var/www/html/storage -type f -exec chmod 664 {} \;
 
 # Create log directories
 RUN mkdir -p \
