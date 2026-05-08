@@ -30,6 +30,11 @@ RUN if [ -f package-lock.json ]; then \
     fi
 
 COPY . .
+
+# Force-write clean asset files to bypass any local corruption
+RUN echo -e "@tailwind base;\n@tailwind components;\n@tailwind utilities;" > resources/css/app.css && \
+    echo -e "import './bootstrap';\nimport Alpine from 'alpinejs';\nwindow.Alpine = Alpine;\nAlpine.start();" > resources/js/app.js
+
 RUN npm run build
 
 
