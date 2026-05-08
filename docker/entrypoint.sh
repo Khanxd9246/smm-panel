@@ -19,7 +19,7 @@ echo "==> Waiting for database..."
 MAX_TRIES=30
 TRIES=0
 
-until php artisan db:show --no-ansi >/dev/null 2>&1; do
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" >/dev/null 2>&1; do
     TRIES=$((TRIES + 1))
     if [ $TRIES -ge $MAX_TRIES ]; then
         echo "ERROR: Database not available after $MAX_TRIES attempts. Exiting."
