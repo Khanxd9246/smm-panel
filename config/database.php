@@ -38,9 +38,8 @@ return [
             'prefix'         => '',
             'prefix_indexes' => true,
             'search_path'    => 'public',
-            'sslmode'        => env('DB_SSLMODE', 'prefer'),
-            // Production: set DB_SSLMODE=require in .env
-            // This ensures all data-in-transit is encrypted.
+            'sslmode'        => env('DB_SSLMODE', 'require'),  // Default to 'require' for Railway security
+            // Production: DB_SSLMODE=require ensures all data-in-transit is encrypted
             'options'        => extension_loaded('pdo_pgsql') ? array_filter([
                 PDO::ATTR_TIMEOUT => 10,   // 10s connection timeout
                 PDO::ATTR_PERSISTENT => false, // Never use persistent connections with queues

@@ -29,7 +29,7 @@ return [
 
     'failed' => [
         'driver'   => env('QUEUE_FAILED_DRIVER', 'database'),
-        'database' => env('DB_CONNECTION', 'mysql'),
+        'database' => env('DB_CONNECTION'),  // Use actual configured connection (pgsql, mysql, etc.)
         'table'    => 'failed_jobs',
     ],
 ];
