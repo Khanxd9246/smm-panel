@@ -46,6 +46,9 @@ echo "==> Caching routes..."
 php artisan route:cache
 
 echo "==> Caching views..."
+# Run view:clear explicitly first so any permission/path errors surface clearly
+# (view:cache calls view:clear internally via callSilent, which swallows errors)
+php artisan view:clear
 php artisan view:cache
 
 # ── Storage Link ───────────────────────────────────────────────────────────────
