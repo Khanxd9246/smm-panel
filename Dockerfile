@@ -38,7 +38,10 @@ RUN sed -i 's/\\n/\n/g' resources/css/app.css && \
     sed -i 's/^"//;s/"$//' resources/css/app.css && \
     sed -i 's/\\n/\n/g' resources/js/app.js && \
     sed -i 's/\\"/"/g' resources/js/app.js && \
-    sed -i 's/^"//;s/"$//' resources/js/app.js
+    sed -i 's/^"//;s/"$//' resources/js/app.js && \
+    sed -i 's/\\n/\n/g' tailwind.config.js && \
+    sed -i 's/\\"/"/g' tailwind.config.js && \
+    sed -i 's/^"//;s/"$//' tailwind.config.js
 
 RUN npm run build
 
