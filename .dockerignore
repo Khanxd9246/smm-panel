@@ -1,0 +1,14 @@
+# Laravel Docker ignore rules
+.git
+.gitignore
+.env
+.env.*
+composer.phar
+node_modules
+vendor
+npm-debug.log*
+yarn-error.log*
+public/hot
+storage/*
+!storage/.gitignore
+bootstrap/cache/*.php
