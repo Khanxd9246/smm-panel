@@ -46,13 +46,12 @@ class RegisterController extends Controller
 
         $user = User::create([
             'name'        => $validated['name'],
-            // Fixed line 48: Using absolute path to the Str facade
+            // FIX: Using absolute path to ensure the class is found in production
             'email'       => \Illuminate\Support\Facades\Str::lower(trim($validated['email'])),
             'password'    => Hash::make($validated['password']),
             'referred_by' => $referrer?->id,
         ]);
 
-        // Set non-fillable fields explicitly (security: never mass-assignable)
         $user->funds  = 0;
         $user->status = 'active';
         $user->save();
