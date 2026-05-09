@@ -29,8 +29,6 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Models\FundAccount;
-use App\Models\Setting;
 use App\Services\ProviderSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -448,6 +446,48 @@ class AdminController extends Controller
         }
     }
 
+    public function syncServices()
+    {
+        try {
+            $count = $this->syncService->syncAll();
+            Cache::forget('admin_providers_list');
+            return response()->json(['message' => "Synced {$count} services successfully."]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Sync failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function syncOrders()
+    {
+        try {
+            // Update pending/in-progress orders from all active providers
+            $updated = 0;
+            $orders  = \App\Models\Order::whereIn('status', ['pending', 'in progress'])
+                ->whereNotNull('api_order_id')
+                ->get();
+
+            foreach ($orders as $order) {
+                try {
+                    if ($order->service && $order->service->apiProvider) {
+                        $api    = new \App\Services\ProviderApiService($order->service->apiProvider);
+                        $status = $api->getOrderStatus($order->api_order_id);
+                        if ($status && isset($status['status'])) {
+                            $order->update(['status' => strtolower($status['status'])]);
+                            $updated++;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("syncOrders: order #{$order->id} failed: " . $e->getMessage());
+                }
+            }
+
+            Cache::forget('admin_dashboard_stats');
+            return response()->json(['message' => "Updated {$updated} orders."]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Order sync failed: ' . $e->getMessage()], 500);
+        }
+    }
+
     // ── Services ──────────────────────────────────────────────────────────────
 
     public function servicesIndex(Request $request)
@@ -486,7 +526,7 @@ class AdminController extends Controller
 
     public function ticketsIndex(Request $request)
     {
-        $query = Ticket::with('user:id,name,email');
+        $query = Ticket::with(['user:id,name,email', 'messages.user:id,name']);
 
         if ($status = $request->get('status')) {
             $query->where('status', $status);
@@ -496,22 +536,11 @@ class AdminController extends Controller
         return view('admin.tickets.index', compact('tickets'));
     }
 
-    public function ticketsShow(Ticket $ticket)
-    {
-        $ticket->load(['user', 'messages.user']);
-
-        return view('admin.tickets.show', compact('ticket'));
-    }
-
     public function ticketsReply(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
             'message' => 'required|string|max:5000',
         ]);
-
-        if ($ticket->status === 'closed') {
-            return back()->withErrors(['error' => 'Cannot reply to a closed ticket.']);
-        }
 
         TicketMessage::create([
             'ticket_id' => $ticket->id,
@@ -526,80 +555,9 @@ class AdminController extends Controller
 
     public function ticketsClose(Ticket $ticket)
     {
-        if ($ticket->status !== 'closed') {
-            $ticket->update(['status' => 'closed', 'closed_at' => now()]);
-            $this->auditLog('close_ticket', 'Ticket', $ticket->id, []);
-        }
-
+        $ticket->update(['status' => 'closed', 'closed_at' => now()]);
+        $this->auditLog('close_ticket', 'Ticket', $ticket->id, []);
         return back()->with('success', 'Ticket closed.');
-    }
-
-    public function fundAccountsIndex(Request $request)
-    {
-        $accounts = FundAccount::orderBy('name')->paginate(30)->withQueryString();
-        return view('admin.fund_accounts.index', compact('accounts'));
-    }
-
-    public function fundAccountsCreate()
-    {
-        return view('admin.fund_accounts.create');
-    }
-
-    public function fundAccountsStore(Request $request)
-    {
-        $validated = $request->validate([
-            'name'           => 'required|string|max:100|unique:fund_accounts,name',
-            'iban'           => 'nullable|string|max:255|required_without:account_number',
-            'account_number' => 'nullable|string|max:255|required_without:iban',
-            'notes'          => 'nullable|string|max:1000',
-            'status'         => 'required|in:active,inactive',
-        ]);
-
-        FundAccount::create($validated);
-
-        return redirect()->route('admin.fund_accounts.index')->with('success', 'Payment account created.');
-    }
-
-    public function fundAccountsEdit(FundAccount $fundAccount)
-    {
-        return view('admin.fund_accounts.edit', compact('fundAccount'));
-    }
-
-    public function fundAccountsUpdate(Request $request, FundAccount $fundAccount)
-    {
-        $validated = $request->validate([
-            'name'           => 'required|string|max:100|unique:fund_accounts,name,' . $fundAccount->id,
-            'iban'           => 'nullable|string|max:255|required_without:account_number',
-            'account_number' => 'nullable|string|max:255|required_without:iban',
-            'notes'          => 'nullable|string|max:1000',
-            'status'         => 'required|in:active,inactive',
-        ]);
-
-        $fundAccount->update($validated);
-
-        return back()->with('success', 'Payment account updated.');
-    }
-
-    public function settings()
-    {
-        $whatsappLink = Setting::get('whatsapp_link');
-        return view('admin.settings', compact('whatsappLink'));
-    }
-
-    public function settingsUpdate(Request $request)
-    {
-        $validated = $request->validate([
-            'whatsapp_link' => 'nullable|url|max:255',
-        ]);
-
-        $value = $validated['whatsapp_link'] ?? null;
-        if ($value === null) {
-            Setting::where('key', 'whatsapp_link')->delete();
-        } else {
-            Setting::set('whatsapp_link', $value);
-        }
-
-        return back()->with('success', 'WhatsApp link updated.');
     }
 
     // ── Logs ──────────────────────────────────────────────────────────────────
@@ -644,6 +602,24 @@ class AdminController extends Controller
         $logs     = $query->orderByDesc('provider_logs.created_at')->paginate(50);
         $providers = ApiProvider::all(['id', 'name']);
         return view('admin.logs.providers', compact('logs', 'providers'));
+    }
+
+    public function settings()
+    {
+        $whatsappNumber  = \App\Models\SiteSetting::get('whatsapp_number', '');
+        $whatsappMessage = \App\Models\SiteSetting::get('whatsapp_message', 'Hi, I submitted a fund request. TXN ID: ');
+        return view('admin.settings', compact('whatsappNumber', 'whatsappMessage'));
+    }
+
+    public function settingsSave(Request $request)
+    {
+        $validated = $request->validate([
+            'whatsapp_number'  => 'nullable|string|max:20',
+            'whatsapp_message' => 'nullable|string|max:255',
+        ]);
+        \App\Models\SiteSetting::set('whatsapp_number',  $validated['whatsapp_number']  ?? '');
+        \App\Models\SiteSetting::set('whatsapp_message', $validated['whatsapp_message'] ?? '');
+        return back()->with('success', 'Settings saved successfully.');
     }
 
     // ── Private Helpers ───────────────────────────────────────────────────────
