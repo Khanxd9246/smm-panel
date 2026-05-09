@@ -137,8 +137,8 @@
                     <input type="number" name="amount" step="0.01" min="0.01" class="glass-input w-full" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-on-surface mb-2">Note</label>
-                    <textarea name="note" rows="3" class="glass-input w-full" placeholder="Optional note..."></textarea>
+                    <label class="block text-sm font-medium text-on-surface mb-2">Reason</label>
+                    <textarea name="reason" rows="3" class="glass-input w-full" placeholder="Reason for adding funds..." required minlength="5"></textarea>
                 </div>
             </div>
             <div class="flex gap-3 mt-6">
