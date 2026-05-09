@@ -48,6 +48,53 @@ class AuthTest extends TestCase
     }
 
     /** @test */
+    public function login_is_case_insensitive_for_email(): void
+    {
+        $user = User::factory()->create([
+            'email'    => 'test@example.com',
+            'password' => Hash::make('password123!'),
+            'status'   => 'active',
+        ]);
+
+        $response = $this->post('/login', [
+            'email'    => 'TEST@EXAMPLE.COM',
+            'password' => 'password123!',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
+    }
+
+    /** @test */
+    public function repeated_invalid_logins_lock_the_account(): void
+    {
+        $user = User::factory()->create([
+            'email'    => 'test@example.com',
+            'password' => Hash::make('password123!'),
+            'status'   => 'active',
+        ]);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->post('/login', [
+                'email'    => 'test@example.com',
+                'password' => 'wrong_password',
+            ]);
+        }
+
+        $user->refresh();
+        $this->assertNotNull($user->locked_until);
+        $this->assertTrue($user->isLocked());
+
+        $response = $this->post('/login', [
+            'email'    => 'test@example.com',
+            'password' => 'password123!',
+        ]);
+
+        $response->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
+    /** @test */
     public function banned_user_cannot_login(): void
     {
         User::factory()->create([
