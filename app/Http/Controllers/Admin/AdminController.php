@@ -75,12 +75,12 @@ class AdminController extends Controller
             ");
         });
 
-        $recentOrders = Order::with(['user:id,name,email', 'service:id,name'])
+        $recent_orders = Order::with(['user:id,name,email', 'service:id,name'])
             ->latest()
             ->take(10)
             ->get();
 
-        $recentUsers = User::latest()->take(6)->get(['id', 'name', 'email', 'created_at', 'status']);
+        $recent_users = User::latest()->take(6)->get(['id', 'name', 'email', 'created_at', 'status']);
 
         $providers = Cache::remember('admin_providers_list', 600, fn () =>
             ApiProvider::withCount('services')->get()
@@ -102,8 +102,8 @@ class AdminController extends Controller
             'total_revenue',
             'pending_transactions',
             'open_tickets',
-            'recentOrders',
-            'recentUsers',
+            'recent_orders',
+            'recent_users',
             'providers'
         ));
     }
