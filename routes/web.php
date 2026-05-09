@@ -77,6 +77,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [OrderController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('store');
+        Route::get('services-by-category', [OrderController::class, 'servicesByCategory'])->name('services_by_category');
         Route::get('{order}', [OrderController::class, 'show'])->name('show');
     });
 
@@ -102,6 +103,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
+    // Manual Fund Requests (user-facing)
+    Route::get('/funds/request',  [\App\Http\Controllers\FundRequestController::class, 'index'])->name('funds.request.index');
+    Route::post('/funds/request', [\App\Http\Controllers\FundRequestController::class, 'store'])->name('funds.request.store');
 
     // Referrals
     Route::get('/referral', [ReferralController::class, 'index'])->name('referral.index');
@@ -129,7 +134,23 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
 
     // Settings
-    Route::get('settings', [AdminController::class, 'settings'])->name('settings');
+    Route::get('settings',  [AdminController::class, 'settings'])->name('settings');
+    Route::post('settings', [AdminController::class, 'settingsSave'])->name('settings.save');
+
+    // Payment Accounts
+    Route::prefix('payment-accounts')->name('payment-accounts.')->group(function () {
+        Route::get('/',                   [\App\Http\Controllers\Admin\PaymentAccountController::class, 'index'])->name('index');
+        Route::post('/',                  [\App\Http\Controllers\Admin\PaymentAccountController::class, 'store'])->name('store');
+        Route::post('{account}/toggle',   [\App\Http\Controllers\Admin\PaymentAccountController::class, 'toggle'])->name('toggle');
+        Route::delete('{account}',        [\App\Http\Controllers\Admin\PaymentAccountController::class, 'destroy'])->name('destroy');
+    });
+
+    // Fund Requests (admin review)
+    Route::prefix('fund-requests')->name('fund-requests.')->group(function () {
+        Route::get('/',                        [\App\Http\Controllers\Admin\PaymentAccountController::class, 'fundRequests'])->name('index');
+        Route::post('{fundRequest}/approve',   [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
+        Route::post('{fundRequest}/reject',    [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
+    });
 
     // API Providers Management
     Route::prefix('providers')->name('providers.')->group(function () {
@@ -178,21 +199,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Tickets Management
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [AdminController::class, 'ticketsIndex'])->name('index');
-        Route::get('{ticket}', [AdminController::class, 'ticketsShow'])->name('show');
         Route::post('{ticket}/reply', [AdminController::class, 'ticketsReply'])->name('reply');
         Route::post('{ticket}/close', [AdminController::class, 'ticketsClose'])->name('close');
     });
 
-    // Fund Accounts
-    Route::prefix('fund-accounts')->name('fund_accounts.')->group(function () {
-        Route::get('/', [AdminController::class, 'fundAccountsIndex'])->name('index');
-        Route::get('create', [AdminController::class, 'fundAccountsCreate'])->name('create');
-        Route::post('/', [AdminController::class, 'fundAccountsStore'])->name('store');
-        Route::get('{fundAccount}/edit', [AdminController::class, 'fundAccountsEdit'])->name('edit');
-        Route::put('{fundAccount}', [AdminController::class, 'fundAccountsUpdate'])->name('update');
-    });
-
-    Route::post('settings', [AdminController::class, 'settingsUpdate'])->name('settings.update');
     // Analytics & Logs
     Route::get('logs/activity', [AdminController::class, 'activityLogs'])->name('logs.activity');
     Route::get('logs/payments', [AdminController::class, 'paymentLogs'])->name('logs.payments');
