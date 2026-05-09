@@ -40,15 +40,34 @@ class OrderController extends Controller
 
     public function create()
     {
-        // Only load active services with their categories — avoid loading all columns
-        $services = Service::with('category')
-            ->where('status', 'active')
-            ->orderBy('category_id')
-            ->get();
+        // Only load categories for the initial page render.
+        // Services are fetched via AJAX when a category is selected — avoids
+        // dumping 5,000+ services into the HTML on every page load.
+        $categories = Category::where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'icon', 'color']);
 
-        $categories = Category::where('status', 'active')->get();
+        return view('orders.create', compact('categories'));
+    }
 
-        return view('orders.create', compact('services', 'categories'));
+    /**
+     * JSON endpoint: return services for a given category.
+     * Called by the order create page JS when the user picks a category.
+     */
+    public function servicesByCategory(Request $request)
+    {
+        $categoryId = $request->integer('category_id');
+
+        $services = \Illuminate\Support\Facades\Cache::remember(
+            "services_cat_{$categoryId}",
+            300,
+            fn () => Service::where('status', 'active')
+                ->where('category_id', $categoryId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'rate', 'min', 'max', 'description', 'min_time', 'max_time'])
+        );
+
+        return response()->json($services);
     }
 
     public function store(\App\Http\Requests\StoreOrderRequest $request)
