@@ -3,21 +3,6 @@
 @section('page-title', 'Dashboard')
 
 @section('content')
-<style>
-    /* Fix for invisible dropdown options in image_abf497.jpg */
-    select option {
-        background-color: #1a1c1e !important;
-        color: white !important;
-    }
-    /* Ensures the select box looks consistent across browsers */
-    .glass-input-dark {
-        background-color: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 0.75rem;
-        color: white;
-    }
-</style>
-
 {{-- Welcome Hero --}}
 <div class="glass-card rounded-xl p-md relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-gutter fade-up">
     <div class="absolute inset-0 z-0 opacity-10 pointer-events-none" style="background:linear-gradient(135deg,#4d8eff22,#571bc122);"></div>
@@ -37,6 +22,7 @@
 
 {{-- Bento Grid Metrics --}}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-gutter">
+
     {{-- Balance --}}
     <div class="glass-card rounded-xl p-sm flex flex-col justify-between relative overflow-hidden group fade-up">
         <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary/80 shadow-[0_0_10px_rgba(173,198,255,0.8)]"></div>
@@ -80,9 +66,11 @@
         <div>
             <span class="font-h1 text-on-surface {{ $pending_orders > 0 ? 'text-[#fcd34d]' : '' }}" style="font-size:36px">{{ $pending_orders }}</span>
             <div class="flex items-center gap-1 mt-1 text-outline text-xs">
-                <span class="{{ $pending_orders > 0 ? 'text-[#fcd34d]' : 'text-tertiary' }}">
-                    {{ $pending_orders > 0 ? 'Requires attention' : 'All clear' }}
-                </span>
+                @if($pending_orders > 0)
+                <span class="text-[#fcd34d]">Requires attention</span>
+                @else
+                <span class="text-tertiary">All clear</span>
+                @endif
             </div>
         </div>
     </div>
@@ -106,6 +94,7 @@
 
 {{-- Quick Order + Recent Activity --}}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+
     {{-- Quick Order Widget --}}
     <div class="lg:col-span-1 glass-card rounded-xl p-md flex flex-col h-full fade-up">
         <h3 class="font-h3 text-h3 text-on-surface mb-6 flex items-center gap-2">
@@ -116,7 +105,7 @@
             <div class="space-y-1">
                 <label class="font-label-caps text-label-caps text-outline">Category</label>
                 <div class="relative">
-                    <select name="category_id" id="qo-category" class="w-full glass-input-dark py-2 pl-3 pr-10 appearance-none font-body-sm text-body-sm" onchange="loadServices(this.value)">
+                    <select name="category_id" id="qo-category" class="w-full glass-input py-2 pl-3 pr-10 appearance-none font-body-sm text-body-sm bg-transparent" onchange="loadServices(this.value)">
                         <option value="">Select Category</option>
                         @foreach($categories as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -128,7 +117,7 @@
             <div class="space-y-1">
                 <label class="font-label-caps text-label-caps text-outline">Service</label>
                 <div class="relative">
-                    <select name="service_id" id="qo-service" class="w-full glass-input-dark py-2 pl-3 pr-10 appearance-none font-body-sm text-body-sm" onchange="updatePrice()">
+                    <select name="service_id" id="qo-service" class="w-full glass-input py-2 pl-3 pr-10 appearance-none font-body-sm text-body-sm bg-transparent" onchange="updatePrice()">
                         <option value="">Select Service</option>
                     </select>
                     <span class="material-symbols-outlined absolute right-2 top-2.5 text-outline pointer-events-none">expand_more</span>
@@ -136,11 +125,11 @@
             </div>
             <div class="space-y-1">
                 <label class="font-label-caps text-label-caps text-outline">Link / Target</label>
-                <input class="w-full glass-input-dark py-2 px-3 font-body-sm text-body-sm placeholder:text-outline/50" placeholder="https://..." type="url" name="link" required/>
+                <input class="w-full glass-input py-2 px-3 font-body-sm text-body-sm placeholder:text-outline/50 bg-transparent" placeholder="https://..." type="url" name="link" required/>
             </div>
             <div class="space-y-1">
                 <label class="font-label-caps text-label-caps text-outline">Quantity</label>
-                <input class="w-full glass-input-dark py-2 px-3 font-body-sm text-body-sm" placeholder="1000" type="number" name="quantity" id="qo-qty" min="1" required oninput="updatePrice()"/>
+                <input class="w-full glass-input py-2 px-3 font-body-sm text-body-sm bg-transparent" placeholder="1000" type="number" name="quantity" id="qo-qty" min="1" required oninput="updatePrice()"/>
             </div>
             <div class="mt-auto pt-4 flex flex-col gap-3">
                 <div class="flex justify-between items-center bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
@@ -216,12 +205,35 @@
 @section('scripts')
 <script>
 const PKR = {{ session('usd_pkr_rate', 280) }};
-const services = @json($services_by_category);
+const SERVICES_URL = '{{ route("orders.services_by_category") }}';
+let cachedServices = {};
 
 function loadServices(catId) {
     const sel = document.getElementById('qo-service');
+    sel.innerHTML = '<option value="">Loading...</option>';
+    sel.disabled = true;
+
+    if (cachedServices[catId]) {
+        renderServices(sel, cachedServices[catId]);
+        return;
+    }
+
+    fetch(SERVICES_URL + '?category_id=' + catId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(list => {
+        cachedServices[catId] = list;
+        renderServices(sel, list);
+    })
+    .catch(() => {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        sel.disabled = false;
+    });
+}
+
+function renderServices(sel, list) {
     sel.innerHTML = '<option value="">Select Service</option>';
-    const list = services[catId] || [];
     list.forEach(s => {
         const o = document.createElement('option');
         o.value = s.id;
@@ -231,6 +243,7 @@ function loadServices(catId) {
         o.textContent  = s.name + ' — $' + parseFloat(s.rate).toFixed(4) + '/1K';
         sel.appendChild(o);
     });
+    sel.disabled = false;
     updatePrice();
 }
 
