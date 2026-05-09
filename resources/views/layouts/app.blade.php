@@ -133,8 +133,14 @@ tailwind.config = {
         @if(auth()->user()->is_admin ?? false)
         <div class="mt-4 pt-4 border-t border-white/5">
             <p class="text-[10px] text-slate-600 uppercase tracking-widest px-4 mb-2 font-label-caps">Admin</p>
-            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
                 <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span> Command Center
+            </a>
+            <a href="{{ route('admin.payment-accounts.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.payment-accounts.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                <span class="material-symbols-outlined text-[20px]">account_balance</span> Payment Accounts
+            </a>
+            <a href="{{ route('admin.fund-requests.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.fund-requests.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                <span class="material-symbols-outlined text-[20px]">payments</span> Fund Requests
             </a>
         </div>
         @endif
