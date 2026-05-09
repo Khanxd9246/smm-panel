@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePaymentRequest;
-use App\Models\PaymentLog;
 use App\Models\FundAccount;
+use App\Models\PaymentLog;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Services\ExchangeRateService;
@@ -15,6 +15,15 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient;
 
+/**
+ * FundsController
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SECURITY CHANGES (refactor):
+ *  - index()  → only DB-active accounts, zero hardcoded methods
+ *  - manual() → validates account is active before accepting submission
+ *  - stripe / paypal remain, but are only reachable when configured in .env
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 class FundsController extends Controller
 {
     public function __construct()
@@ -22,15 +31,25 @@ class FundsController extends Controller
         $this->middleware('auth');
     }
 
+    // ── Public page ───────────────────────────────────────────────────────
+
+    /**
+     * Show the Add Funds page.
+     *
+     * Payment methods come EXCLUSIVELY from the `fund_accounts` table with
+     * `is_active = true`.  Nothing is hardcoded here.
+     */
     public function index()
     {
-        $accounts = FundAccount::active()->orderBy('name')->get();
+        $accounts     = FundAccount::active()->orderBy('name')->get();
         $whatsappLink = Setting::get('whatsapp_link');
 
+        // If no active accounts exist yet, show an informational message
+        // instead of a broken or empty payment form.
         return view('funds.index', compact('accounts', 'whatsappLink'));
     }
 
-    // ── Stripe ────────────────────────────────────────────────────────────────
+    // ── Stripe ───────────────────────────────────────────────────────────
 
     public function stripe(Request $request): JsonResponse
     {
@@ -45,7 +64,7 @@ class FundsController extends Controller
         }
 
         try {
-            $stripe = new StripeClient($stripeSecret);
+            $stripe      = new StripeClient($stripeSecret);
             $amountCents = (int) round($validated['amount'] * 100);
 
             $paymentIntent = $stripe->paymentIntents->create([
@@ -56,7 +75,7 @@ class FundsController extends Controller
                     'user_email' => Auth::user()->email,
                 ],
                 'automatic_payment_methods' => ['enabled' => true],
-                'statement_descriptor' => substr(config('app.name'), 0, 22),
+                'statement_descriptor'      => substr(config('app.name'), 0, 22),
             ]);
 
             Log::info('Stripe PaymentIntent created', [
@@ -76,7 +95,7 @@ class FundsController extends Controller
         }
     }
 
-    // ── PayPal ────────────────────────────────────────────────────────────────
+    // ── PayPal ────────────────────────────────────────────────────────────
 
     public function paypal(Request $request): JsonResponse
     {
@@ -92,7 +111,9 @@ class FundsController extends Controller
             return response()->json(['error' => 'PayPal not configured.'], 500);
         }
 
-        $baseUrl = $mode === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+        $baseUrl = $mode === 'sandbox'
+            ? 'https://api-m.sandbox.paypal.com'
+            : 'https://api-m.paypal.com';
 
         try {
             $client   = new \GuzzleHttp\Client(['timeout' => 15]);
@@ -128,26 +149,43 @@ class FundsController extends Controller
         }
     }
 
-    // ── Manual Payment (EasyPaisa / JazzCash / Bank Transfer) ────────────────
+    // ── Manual payment (EasyPaisa / JazzCash / Bank Transfer / Crypto) ────
 
+    /**
+     * POST /funds/manual
+     *
+     * Security guarantees:
+     *  1. fund_account_id is validated to exist AND be active (double-check
+     *     beyond what StorePaymentRequest does — the account could be toggled
+     *     off between page load and submission).
+     *  2. Duplicate reference IDs are rejected.
+     *  3. Amount is validated by StorePaymentRequest (min/max from config).
+     */
     public function manual(StorePaymentRequest $request)
     {
         $validated = $request->validated();
-        $reference = strtoupper($validated['reference']);
+        $reference = strtoupper(trim($validated['reference']));
 
-        // Check for duplicate reference
-        $duplicate = Transaction::where('reference', $reference)->exists();
-        if ($duplicate) {
-            return back()->withErrors(['reference' => 'This transaction ID has already been submitted.']);
+        // ── Guard: duplicate reference ────────────────────────────────────
+        if (Transaction::where('reference', $reference)->exists()) {
+            return back()->withErrors([
+                'reference' => 'This transaction ID has already been submitted.',
+            ]);
         }
 
+        // ── Guard: account must exist AND be active ───────────────────────
+        // StorePaymentRequest only checks `exists:fund_accounts,id`.
+        // We additionally verify is_active here to prevent race conditions
+        // where an admin disables an account between page load and submit.
         $account = FundAccount::active()->find($validated['fund_account_id']);
-        if (!$account) {
-            return back()->withErrors(['fund_account_id' => 'Selected payment account is not available.']);
+        if (! $account) {
+            return back()->withErrors([
+                'fund_account_id' => 'The selected payment account is no longer available.',
+            ]);
         }
 
-        // Convert PKR → USD
-        $rate = ExchangeRateService::getUsdToPkr();
+        // ── Convert PKR → USD ─────────────────────────────────────────────
+        $rate        = ExchangeRateService::getUsdToPkr();
         $amountInUsd = round($validated['amount'] / $rate, 6);
 
         try {
@@ -155,7 +193,8 @@ class FundsController extends Controller
                 'user_id'         => Auth::id(),
                 'amount'          => $amountInUsd,
                 'type'            => 'deposit',
-                'description'     => 'Manual deposit request to ' . $account->name . " (PKR " . number_format($validated['amount'], 2) . ")",
+                'description'     => "Manual deposit via {$account->name} (PKR " .
+                                     number_format($validated['amount'], 2) . ')',
                 'status'          => 'pending',
                 'reference'       => $reference,
                 'gateway'         => 'manual',
@@ -172,14 +211,20 @@ class FundsController extends Controller
                 'ip_address'     => $request->ip(),
             ]);
 
-            Log::info('Manual payment submitted', ['user_id' => Auth::id(), 'reference' => $reference]);
+            Log::info('Manual payment submitted', [
+                'user_id'   => Auth::id(),
+                'reference' => $reference,
+                'account'   => $account->name,
+            ]);
 
             return redirect()->route('transactions.index')
-                ->with('success', 'Payment request submitted and pending admin verification.');
+                ->with('success', 'Payment submitted — pending admin verification.');
 
         } catch (\Throwable $e) {
             Log::error('Manual payment submission failed: ' . $e->getMessage());
-            return back()->withInput()->withErrors(['error' => 'Submission failed. Please try again.']);
+            return back()->withInput()->withErrors([
+                'error' => 'Submission failed. Please try again.',
+            ]);
         }
     }
 }
