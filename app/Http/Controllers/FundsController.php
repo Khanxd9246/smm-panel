@@ -2,28 +2,9 @@
 
 namespace App\Http\Controllers;
 
-// ============================================================================
-// FundsController — Production Payment Initiation
-// ============================================================================
-// This controller handles the INITIATION of payments (frontend → backend).
-// The actual fund crediting happens in the WebhookController + ProcessWebhookPaymentJob.
-//
-// NEVER credit funds here — only in the webhook handler after verification.
-// The flow is:
-//   1. User submits amount → This controller creates a Stripe PaymentIntent
-//   2. Frontend confirms payment → Stripe processes card
-//   3. Stripe sends webhook → WebhookController verifies → Job credits funds
-//
-// WHY THIS SEPARATION:
-//   - Stripe webhooks are cryptographically verified
-//   - Payment confirmation from the browser is NOT verified (spoofable)
-//   - Never trust the client's claim that "payment succeeded"
-// ============================================================================
-
 use App\Http\Requests\StorePaymentRequest;
 use App\Models\PaymentLog;
 use App\Models\FundAccount;
-use App\Models\PaymentLog;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Services\ExchangeRateService;
@@ -43,7 +24,6 @@ class FundsController extends Controller
 
     public function index()
     {
-        return view('funds.index');
         $accounts = FundAccount::active()->orderBy('name')->get();
         $whatsappLink = Setting::get('whatsapp_link');
 
@@ -52,14 +32,6 @@ class FundsController extends Controller
 
     // ── Stripe ────────────────────────────────────────────────────────────────
 
-    /**
-     * Create a Stripe PaymentIntent and return the client_secret to the frontend.
-     *
-     * The frontend uses this client_secret with Stripe.js to confirm the payment.
-     * We DO NOT credit funds here — we wait for the webhook.
-     *
-     * Route: POST /funds/stripe
-     */
     public function stripe(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -74,24 +46,17 @@ class FundsController extends Controller
 
         try {
             $stripe = new StripeClient($stripeSecret);
-
-            // Convert dollars to cents (Stripe uses smallest currency unit)
             $amountCents = (int) round($validated['amount'] * 100);
 
             $paymentIntent = $stripe->paymentIntents->create([
                 'amount'   => $amountCents,
                 'currency' => 'usd',
-                // Pass user_id in metadata so the webhook can identify the user
-                // This is the ONLY safe way to associate a payment with a user
                 'metadata' => [
                     'user_id'    => Auth::id(),
                     'user_email' => Auth::user()->email,
                 ],
-                // Automatic payment methods (card, Google Pay, Apple Pay)
                 'automatic_payment_methods' => ['enabled' => true],
-                // Idempotency: if the same user creates the same amount twice
-                // within 24h, Stripe deduplicates (safety net)
-                'statement_descriptor' => config('app.name'),
+                'statement_descriptor' => substr(config('app.name'), 0, 22),
             ]);
 
             Log::info('Stripe PaymentIntent created', [
@@ -100,30 +65,19 @@ class FundsController extends Controller
                 'payment_intent_id' => $paymentIntent->id,
             ]);
 
-            // Return client_secret to frontend — safe to expose (it's user-specific)
             return response()->json([
                 'client_secret' => $paymentIntent->client_secret,
                 'amount'        => $validated['amount'],
             ]);
 
         } catch (ApiErrorException $e) {
-            Log::error('Stripe PaymentIntent creation failed: ' . $e->getMessage(), [
-                'user_id' => Auth::id(),
-            ]);
-            return response()->json(['error' => 'Could not initiate payment. Please try again.'], 500);
+            Log::error('Stripe PaymentIntent creation failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Could not initiate payment.'], 500);
         }
     }
 
     // ── PayPal ────────────────────────────────────────────────────────────────
 
-    /**
-     * Create a PayPal order and return the order ID to the frontend.
-     *
-     * The frontend uses the PayPal JS SDK to complete payment.
-     * Funds are credited only after the webhook confirms PAYMENT.CAPTURE.COMPLETED.
-     *
-     * Route: POST /funds/paypal
-     */
     public function paypal(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -138,20 +92,16 @@ class FundsController extends Controller
             return response()->json(['error' => 'PayPal not configured.'], 500);
         }
 
-        $baseUrl = $mode === 'sandbox'
-            ? 'https://api-m.sandbox.paypal.com'
-            : 'https://api-m.paypal.com';
+        $baseUrl = $mode === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
 
         try {
-            // Get access token
-            $client   = new \GuzzleHttp\Client(['timeout' => 15, 'verify' => true]);
+            $client   = new \GuzzleHttp\Client(['timeout' => 15]);
             $tokenRes = $client->post("{$baseUrl}/v1/oauth2/token", [
                 'auth'        => [$clientId, $secret],
                 'form_params' => ['grant_type' => 'client_credentials'],
             ]);
             $token = json_decode((string) $tokenRes->getBody(), true)['access_token'];
 
-            // Create order
             $orderRes = $client->post("{$baseUrl}/v2/checkout/orders", [
                 'headers' => [
                     'Authorization' => "Bearer {$token}",
@@ -164,14 +114,12 @@ class FundsController extends Controller
                             'currency_code' => 'USD',
                             'value'         => number_format($validated['amount'], 2, '.', ''),
                         ],
-                        // custom_id carries user_id to the webhook handler
                         'custom_id' => (string) Auth::id(),
                     ]],
                 ],
             ]);
 
             $order = json_decode((string) $orderRes->getBody(), true);
-
             return response()->json(['order_id' => $order['id']]);
 
         } catch (\Throwable $e) {
@@ -182,56 +130,32 @@ class FundsController extends Controller
 
     // ── Manual Payment (EasyPaisa / JazzCash / Bank Transfer) ────────────────
 
-    /**
-     * Submit a manual payment request.
-     *
-     * The admin reviews and approves/rejects in the admin panel.
-     * NO funds are credited here — only on admin approval.
-     *
-     * Route: POST /funds/manual
-     */
     public function manual(StorePaymentRequest $request)
     {
         $validated = $request->validated();
-
-        // Prevent duplicate reference submissions
-        $exists = Transaction::where('reference', $validated['reference'])
-            ->where('type', 'deposit')
-            ->exists();
-
-        if ($exists) {
-            return back()->withErrors(['reference' => 'This reference number has already been submitted.']);
-        }
-
-        // Convert PKR → USD using live exchange rate
-        $rate        = ExchangeRateService::getUsdToPkr();
-        $account = FundAccount::active()->find($validated['fund_account_id']);
-        if (! $account) {
-            return back()->withErrors(['fund_account_id' => 'Selected payment account is not available.']);
-        }
-
         $reference = strtoupper($validated['reference']);
+
+        // Check for duplicate reference
         $duplicate = Transaction::where('reference', $reference)->exists();
         if ($duplicate) {
             return back()->withErrors(['reference' => 'This transaction ID has already been submitted.']);
         }
 
+        $account = FundAccount::active()->find($validated['fund_account_id']);
+        if (!$account) {
+            return back()->withErrors(['fund_account_id' => 'Selected payment account is not available.']);
+        }
+
+        // Convert PKR → USD
         $rate = ExchangeRateService::getUsdToPkr();
         $amountInUsd = round($validated['amount'] / $rate, 6);
 
         try {
             $transaction = Transaction::create([
-                'user_id'     => Auth::id(),
-                'amount'      => $amountInUsd,
-                'type'        => 'deposit',
-                'description' => strtoupper($validated['method']) . " Deposit (PKR " . number_format($validated['amount'], 2) . ")",
-                'status'      => 'pending',
-                'reference'   => $validated['reference'],
-                'gateway'     => $validated['method'],
                 'user_id'         => Auth::id(),
                 'amount'          => $amountInUsd,
                 'type'            => 'deposit',
-                'description'     => 'Manual deposit request to ' . $account->name,
+                'description'     => 'Manual deposit request to ' . $account->name . " (PKR " . number_format($validated['amount'], 2) . ")",
                 'status'          => 'pending',
                 'reference'       => $reference,
                 'gateway'         => 'manual',
@@ -241,10 +165,6 @@ class FundsController extends Controller
             PaymentLog::create([
                 'user_id'        => Auth::id(),
                 'transaction_id' => $transaction->id,
-                'gateway'        => $validated['method'],
-                'status'         => 'pending',
-                'amount'         => $amountInUsd,
-                'reference'      => $validated['reference'],
                 'gateway'        => 'manual',
                 'status'         => 'pending',
                 'amount'         => $amountInUsd,
@@ -252,18 +172,9 @@ class FundsController extends Controller
                 'ip_address'     => $request->ip(),
             ]);
 
-            Log::info('Manual payment submitted', [
-                'transaction_id' => $transaction->id,
-                'user_id'        => Auth::id(),
-                'method'         => $validated['method'],
-                'account_id'     => $account->id,
-                'amount_pkr'     => $validated['amount'],
-                'amount_usd'     => $amountInUsd,
-            ]);
+            Log::info('Manual payment submitted', ['user_id' => Auth::id(), 'reference' => $reference]);
 
             return redirect()->route('transactions.index')
-                ->with('success', 'Payment submitted and pending admin verification (10-30 minutes).');
-            return redirect()->route('funds.index')
                 ->with('success', 'Payment request submitted and pending admin verification.');
 
         } catch (\Throwable $e) {
