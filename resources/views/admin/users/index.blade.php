@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @extends('layouts.app')
 
 @section('title', 'Users')
@@ -167,7 +166,6 @@ document.getElementById('addFundsModal').addEventListener('click', (e) => {
 });
 </script>
 @endsection
-=======
 @extends('layouts.app')
 
 @section('title', 'Users')
@@ -336,4 +334,3 @@ document.getElementById('addFundsModal').addEventListener('click', (e) => {
 });
 </script>
 @endsection
->>>>>>> 491ed81 (initial commit)

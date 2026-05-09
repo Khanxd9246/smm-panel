@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @component('mail::message')
 # Reset Your Password
 
@@ -21,7 +20,6 @@ Thanks,<br>
 If you're having trouble clicking the "{{ $actionText }}" button, copy and paste the URL below into your web browser: [{{ $displayableActionUrl }}]({{ $actionUrl }})
 @endslot
 @endcomponent
-=======
 @component('mail::message')
 # Reset Your Password
 
@@ -44,4 +42,3 @@ Thanks,<br>
 If you're having trouble clicking the "{{ $actionText }}" button, copy and paste the URL below into your web browser: [{{ $displayableActionUrl }}]({{ $actionUrl }})
 @endslot
 @endcomponent
->>>>>>> 491ed81 (initial commit)

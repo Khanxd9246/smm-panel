@@ -17,8 +17,6 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
 
-<<<<<<< HEAD
-=======
 @if(session('success'))
     <div class="glass-card rounded-xl p-4 mb-6 border-l-4 border-tertiary bg-tertiary/5">
         <p class="text-tertiary font-medium">{{ session('success') }}</p>
@@ -28,7 +26,6 @@
     </div>
 @endif
 
->>>>>>> 491ed81 (initial commit)
 {{-- Current balance hero --}}
 <div class="glass-card rounded-xl p-md mb-6 relative overflow-hidden fade-up">
     <div class="absolute inset-0 opacity-10" style="background:linear-gradient(135deg,#4d8eff22,transparent)"></div>
@@ -97,8 +94,6 @@
     </div>
 </div>
 
-<<<<<<< HEAD
-=======
 @if($accounts->isNotEmpty())
 @php
     $selectedAccount = $accounts->firstWhere('id', old('fund_account_id'));
@@ -145,7 +140,6 @@
 </div>
 @endif
 
->>>>>>> 491ed81 (initial commit)
 {{-- Amount section --}}
 <div id="amount-section" class="glass-card rounded-xl p-md mb-6 fade-up" style="display:none">
     <h3 class="font-h3 text-h3 text-on-surface mb-5">Deposit Details</h3>
@@ -233,8 +227,6 @@ function selectMethod(id){
     document.getElementById('amount-section').style.display='block';
 }
 
-<<<<<<< HEAD
-=======
 function selectManualAccount(id, name) {
     document.getElementById('fund_account_id').value = id;
     const selected = document.getElementById('selected-account');
@@ -252,7 +244,6 @@ function selectManualAccount(id, name) {
     }
 }
 
->>>>>>> 491ed81 (initial commit)
 function calcFee(){
     if(!activeMethod)return;
     const raw=parseFloat(document.getElementById('amount-input').value)||0;

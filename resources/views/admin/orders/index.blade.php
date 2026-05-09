@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @extends('layouts.app')
 
 @section('title', 'Orders')
@@ -139,7 +138,6 @@
     </div>
 </div>
 @endsection
-=======
 @extends('layouts.app')
 
 @section('title', 'Orders')
@@ -280,4 +278,3 @@
     </div>
 </div>
 @endsection
->>>>>>> 491ed81 (initial commit)

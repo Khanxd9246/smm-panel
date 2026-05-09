@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace App\Http\Controllers\Auth;
@@ -41,7 +40,6 @@ class ForgotPasswordController extends Controller
                 ->withErrors(['email' => trans($response)]);
     }
 }
-=======
 <?php
 
 namespace App\Http\Controllers\Auth;
@@ -84,4 +82,3 @@ class ForgotPasswordController extends Controller
                 ->withErrors(['email' => trans($response)]);
     }
 }
->>>>>>> 491ed81 (initial commit)

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace Tests\Feature;
@@ -44,7 +43,6 @@ class AdminTest extends TestCase
             'status' => 'completed',
         ]);
     }
-=======
 <?php
 
 namespace Tests\Feature;
@@ -90,5 +88,4 @@ class AdminTest extends TestCase
             'status' => 'completed',
         ]);
     }
->>>>>>> 491ed81 (initial commit)
 }

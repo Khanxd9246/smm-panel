@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace App\Notifications;
@@ -28,7 +27,6 @@ class ResetPasswordNotification extends ResetPassword
             ]);
     }
 }
-=======
 <?php
 
 namespace App\Notifications;
@@ -58,4 +56,3 @@ class ResetPasswordNotification extends ResetPassword
             ]);
     }
 }
->>>>>>> 491ed81 (initial commit)

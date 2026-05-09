@@ -145,8 +145,6 @@ class User extends Authenticatable
         return $this->hasMany(Transaction::class);
     }
 
-<<<<<<< HEAD
-=======
     public function fundRequests(): HasMany
     {
         return $this->hasMany(Transaction::class)
@@ -154,7 +152,6 @@ class User extends Authenticatable
             ->whereNotNull('fund_account_id');
     }
 
->>>>>>> 491ed81 (initial commit)
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);

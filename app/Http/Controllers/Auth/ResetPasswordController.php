@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace App\Http\Controllers\Auth;
@@ -67,7 +66,6 @@ class ResetPasswordController extends Controller
         ];
     }
 }
-=======
 <?php
 
 namespace App\Http\Controllers\Auth;
@@ -136,4 +134,3 @@ class ResetPasswordController extends Controller
         ];
     }
 }
->>>>>>> 491ed81 (initial commit)

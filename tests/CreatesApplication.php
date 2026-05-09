@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace Tests;
@@ -16,7 +15,6 @@ trait CreatesApplication
 
         return $app;
     }
-=======
 <?php
 
 namespace Tests;
@@ -34,5 +32,4 @@ trait CreatesApplication
 
         return $app;
     }
->>>>>>> 491ed81 (initial commit)
 }

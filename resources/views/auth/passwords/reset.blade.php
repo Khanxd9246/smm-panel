@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <!DOCTYPE html>
 <html class="dark" lang="en">
 <head>
@@ -88,7 +87,6 @@ tailwind.config={darkMode:"class",theme:{extend:{colors:{"background":"#0b1326",
 </div>
 </body>
 </html>
-=======
 <!DOCTYPE html>
 <html class="dark" lang="en">
 <head>
@@ -178,4 +176,3 @@ tailwind.config={darkMode:"class",theme:{extend:{colors:{"background":"#0b1326",
 </div>
 </body>
 </html>
->>>>>>> 491ed81 (initial commit)

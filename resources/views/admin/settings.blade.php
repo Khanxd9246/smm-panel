@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @extends('layouts.app')
 
 @section('title', 'Admin Settings')
@@ -144,7 +143,6 @@ function clearLogs() {
 }
 </script>
 @endsection
-=======
 @extends('layouts.app')
 
 @section('title', 'Admin Settings')
@@ -303,4 +301,3 @@ function clearLogs() {
 }
 </script>
 @endsection
->>>>>>> 491ed81 (initial commit)

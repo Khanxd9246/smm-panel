@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @extends('layouts.app')
 
 @section('title', 'Edit API Provider')
@@ -94,7 +93,6 @@
     </div>
 </div>
 @endsection
-=======
 @extends('layouts.app')
 
 @section('title', 'Edit API Provider')
@@ -190,4 +188,3 @@
     </div>
 </div>
 @endsection
->>>>>>> 491ed81 (initial commit)

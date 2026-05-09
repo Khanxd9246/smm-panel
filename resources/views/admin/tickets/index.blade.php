@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 @extends('layouts.app')
 
 @section('title', 'Support Tickets')
@@ -102,7 +101,6 @@ function openTicketDetail(ticketId) {
 }
 </script>
 @endsection
-=======
 @extends('layouts.app')
 
 @section('title', 'Support Tickets')
@@ -206,4 +204,3 @@ function openTicketDetail(ticketId) {
 }
 </script>
 @endsection
->>>>>>> 491ed81 (initial commit)
