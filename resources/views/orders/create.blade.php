@@ -4,42 +4,24 @@
 
 @section('css')
 <style>
-/* Global fix for dropdowns/selects */
-select option {
-    background-color: #1a1c1e !important;
-    color: white !important;
-}
-
-.step-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
-.step-circle { width:36px; height:36px; border-radius:50%; border:2px solid #424754; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#8c909f; transition:all 0.3s; }
-.step-circle.active { border-color:#adc6ff; color:#adc6ff; background:rgba(173,198,255,0.1); box-shadow:0 0 12px rgba(173,198,255,0.3); }
-.step-circle.done { border-color:#4edea3; background:#4edea3; color:#003824; }
-.step-label { font-size:10px; color:#8c909f; font-weight:600; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
-.step-circle.active + .step-label { color:#adc6ff; }
-.step-line { flex:1; height:1px; background:#424754; margin-bottom:18px; }
-
-/* Fixed Platform Cards for visibility */
-.platform-card { background:rgba(255, 255, 255, 0.05); border:1px solid rgba(173,198,255,0.1); border-radius:12px; padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; transition:all 0.2s; }
-.platform-card:hover { border-color:#adc6ff; transform:translateY(-2px); box-shadow:0 0 15px rgba(173,198,255,0.15); }
-.platform-card.selected { border-color:#adc6ff; background:rgba(173,198,255,0.08); box-shadow:0 0 15px rgba(173,198,255,0.2); }
-.platform-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; flex-shrink:0; }
-.platform-name { font-size:11px; font-weight:600; color:#8c909f; text-align:center; }
-.platform-card.selected .platform-name { color:#adc6ff; }
-
-/* Fixed Service Rows for visibility */
-.svc-row { padding:12px 14px; border-radius:10px; border:1px solid rgba(173,198,255,0.1); cursor:pointer; transition:all 0.15s; margin-bottom:6px; background:rgba(255, 255, 255, 0.03); }
-.svc-row:hover { border-color:#adc6ff; background:rgba(173,198,255,0.05); }
-.svc-row.selected { border-color:#adc6ff; background:rgba(173,198,255,0.08); }
-
-/* Inputs with background to prevent white-on-white */
-.glass-input-fixed {
-    background-color: #1a1c1e !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    color: white !important;
-}
-
-.step-content { display:none; }
-.step-content.active { display:block; }
+.step-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.step-circle{width:36px;height:36px;border-radius:50%;border:2px solid #424754;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#8c909f;transition:all 0.3s}
+.step-circle.active{border-color:#adc6ff;color:#adc6ff;background:rgba(173,198,255,0.1);box-shadow:0 0 12px rgba(173,198,255,0.3)}
+.step-circle.done{border-color:#4edea3;background:#4edea3;color:#003824}
+.step-label{font-size:10px;color:#8c909f;font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.step-circle.active+.step-label{color:#adc6ff}
+.step-line{flex:1;height:1px;background:#424754;margin-bottom:18px}
+.platform-card{background:rgba(23,31,51,0.5);border:1px solid rgba(173,198,255,0.1);border-radius:12px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all 0.2s}
+.platform-card:hover{border-color:#adc6ff;transform:translateY(-2px);box-shadow:0 0 15px rgba(173,198,255,0.15)}
+.platform-card.selected{border-color:#adc6ff;background:rgba(173,198,255,0.08);box-shadow:0 0 15px rgba(173,198,255,0.2)}
+.platform-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0}
+.platform-name{font-size:11px;font-weight:600;color:#8c909f;text-align:center}
+.platform-card.selected .platform-name{color:#adc6ff}
+.svc-row{padding:12px 14px;border-radius:10px;border:1px solid rgba(173,198,255,0.1);cursor:pointer;transition:all 0.15s;margin-bottom:6px;background:rgba(23,31,51,0.3)}
+.svc-row:hover{border-color:#adc6ff;background:rgba(173,198,255,0.05)}
+.svc-row.selected{border-color:#adc6ff;background:rgba(173,198,255,0.08)}
+.step-content{display:none}
+.step-content.active{display:block}
 </style>
 @endsection
 
@@ -48,12 +30,12 @@ select option {
 
 {{-- Step bar --}}
 <div class="flex items-center mb-8">
-    @foreach(['Platform','Service','Details','Confirm'] as $i => $label)
+    @foreach(['Platform','Category','Service','Details','Confirm'] as $i => $label)
     <div class="step-item" id="si-{{ $i+1 }}">
         <div class="step-circle {{ $i===0 ? 'active' : '' }}" id="sc-{{ $i+1 }}">{{ $i+1 }}</div>
         <p class="step-label">{{ $label }}</p>
     </div>
-    @if($i < 3)<div class="step-line"></div>@endif
+    @if($i < 4)<div class="step-line"></div>@endif
     @endforeach
 </div>
 
@@ -74,7 +56,7 @@ select option {
                 ['Discord','linear-gradient(135deg,#5865F2,#3b4fd4)','fab fa-discord'],
             ]; @endphp
             @foreach($platforms as [$name,$grad,$icon])
-            <button class="platform-card" onclick="selectPlatform('{{ $name }}',this)" data-platform="{{ strtolower($name) }}">
+            <button class="platform-card" onclick="selectPlatform('{{ $name }}',this)">
                 <div class="platform-icon" style="background:{{ $grad }}">
                     <i class="{{ $icon }}"></i>
                 </div>
@@ -85,7 +67,7 @@ select option {
     </div>
 </div>
 
-{{-- STEP 2: Service --}}
+{{-- STEP 2: Category --}}
 <div class="step-content fade-up" id="step-2">
     <div class="glass-card rounded-xl p-md">
         <div class="flex items-center gap-3 mb-4">
@@ -93,49 +75,53 @@ select option {
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <div>
-                <h3 class="font-h3 text-h3 text-on-surface">Choose a service</h3>
+                <h3 class="font-h3 text-h3 text-on-surface">Choose a category</h3>
                 <p class="text-xs text-outline">Platform: <span id="platform-label" class="text-primary font-semibold"></span></p>
             </div>
         </div>
-        <input type="text" id="svc-search" placeholder="Search services..." oninput="filterSvc()"
-            class="w-full glass-input-fixed py-2.5 px-3 mb-4 font-body-sm placeholder:text-outline/50 rounded-lg border focus:border-primary transition-colors">
-        
-        <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="svc-list">
-            @forelse($services as $svc)
-            <div class="svc-row" onclick="selectService({{ $svc->id }},'{{ addslashes($svc->name) }}',{{ $svc->rate }},{{ $svc->min }},{{ $svc->max }},'{{ strtolower($svc->category->name ?? '') }}')"
-                 data-name="{{ strtolower($svc->name) }}"
-                 data-category="{{ strtolower($svc->category->name ?? '') }}">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-on-surface font-medium text-sm truncate">{{ $svc->name }}</p>
-                        <p class="text-outline text-xs mt-0.5">Min: {{ number_format($svc->min) }} — Max: {{ number_format($svc->max) }}</p>
-                    </div>
-                    <div class="text-right flex-shrink-0">
-                        <p class="text-primary font-bold font-inter">${{ number_format($svc->rate,4) }}</p>
-                        <p class="text-outline text-[10px]">per 1,000</p>
-                        <span class="inline-flex mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider
-                            {{ $svc->rate < 0.5 ? 'bg-tertiary/10 text-tertiary border border-tertiary/30' : ($svc->rate < 1.5 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-secondary/10 text-secondary border border-secondary/30') }}">
-                            {{ $svc->rate < 0.5 ? 'Economy' : ($svc->rate < 1.5 ? 'Standard' : 'Premium') }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            @empty
-            <div class="text-center py-10 text-outline">
-                <span class="material-symbols-outlined text-[40px] block mb-2 opacity-30">inventory_2</span>
-                <p>No services yet.</p>
-                <a href="#" onclick="syncNow()" class="text-primary text-sm hover:underline">Sync from provider →</a>
-            </div>
-            @endforelse
+        <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="cat-list">
+            @foreach($categories as $cat)
+            <button onclick="selectCategory({{ $cat->id }}, '{{ addslashes($cat->name) }}')"
+                    class="svc-row w-full text-left" data-cat-name="{{ strtolower($cat->name) }}">
+                <p class="text-on-surface font-medium text-sm">{{ $cat->name }}</p>
+            </button>
+            @endforeach
         </div>
     </div>
 </div>
 
-{{-- STEP 3: Details --}}
+{{-- STEP 3: Service --}}
 <div class="step-content fade-up" id="step-3">
     <div class="glass-card rounded-xl p-md">
-        <div class="flex items-center gap-3 mb-6">
+        <div class="flex items-center gap-3 mb-4">
             <button onclick="goStep(2)" class="text-outline hover:text-on-surface transition-colors p-1">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div>
+                <h3 class="font-h3 text-h3 text-on-surface">Choose a service</h3>
+                <p class="text-xs text-outline">Category: <span id="category-label" class="text-primary font-semibold"></span></p>
+            </div>
+        </div>
+        <input type="text" id="svc-search" placeholder="Search services..." oninput="filterSvc()"
+            class="w-full glass-input py-2.5 px-3 mb-4 font-body-sm placeholder:text-outline/50 bg-transparent rounded-lg border border-outline-variant/40 focus:border-primary transition-colors">
+        <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="svc-list">
+            <div class="text-center py-8 text-outline" id="svc-loading" style="display:none">
+                <span class="material-symbols-outlined text-[32px] block mb-2 opacity-40 animate-spin">progress_activity</span>
+                <p class="text-sm">Loading services...</p>
+            </div>
+            <div class="text-center py-8 text-outline" id="svc-empty" style="display:none">
+                <span class="material-symbols-outlined text-[40px] block mb-2 opacity-30">inventory_2</span>
+                <p>No services found for this category.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- STEP 4: Details --}}
+<div class="step-content fade-up" id="step-4">
+    <div class="glass-card rounded-xl p-md">
+        <div class="flex items-center gap-3 mb-6">
+            <button onclick="goStep(3)" class="text-outline hover:text-on-surface transition-colors p-1">
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <div>
@@ -143,18 +129,16 @@ select option {
                 <p class="text-xs text-outline">Service: <span id="svc-label" class="text-primary font-semibold"></span></p>
             </div>
         </div>
-
         <div class="space-y-5">
             <div class="space-y-2">
                 <label class="font-label-caps text-label-caps text-outline">Link / Target URL *</label>
-                <input type="url" id="order-link" class="w-full glass-input-fixed py-2.5 px-3 font-body-sm placeholder:text-outline/50 rounded-lg" placeholder="https://...">
+                <input type="url" id="order-link" class="w-full glass-input py-2.5 px-3 font-body-sm placeholder:text-outline/50 bg-transparent" placeholder="https://...">
                 <p class="text-xs text-outline">Must be publicly accessible</p>
             </div>
-
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <label class="font-label-caps text-label-caps text-outline">Quantity</label>
-                    <input type="number" id="qty-num" class="w-24 glass-input-fixed py-1.5 px-3 text-sm text-center rounded-lg" oninput="syncSlider()">
+                    <input type="number" id="qty-num" class="w-24 glass-input py-1.5 px-3 text-sm text-center bg-transparent" oninput="syncSlider()">
                 </div>
                 <input type="range" id="qty-range" min="100" max="10000" step="100" value="1000"
                     class="w-full accent-blue-400" oninput="syncNum();calcPrice()">
@@ -163,65 +147,47 @@ select option {
                     <span id="qty-max-label">Max: 10,000</span>
                 </div>
             </div>
-
-            {{-- Price summary --}}
             <div class="bg-surface-container-low rounded-xl p-4 border border-outline-variant/30">
                 <p class="font-label-caps text-label-caps text-outline mb-4">Price Summary</p>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-xs text-outline">Rate / 1K</p>
-                        <p class="text-on-surface font-semibold" id="d-rate">$0.0000</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-outline">Quantity</p>
-                        <p class="text-on-surface font-semibold" id="d-qty">1,000</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-outline">Total USD</p>
-                        <p class="text-h2 text-primary neon-text-primary font-bold" style="font-size:24px" id="d-usd">$0.0000</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-outline">Total PKR</p>
-                        <p class="text-h2 text-tertiary font-bold" style="font-size:24px" id="d-pkr">₨0</p>
-                    </div>
+                    <div><p class="text-xs text-outline">Rate / 1K</p><p class="text-on-surface font-semibold" id="d-rate">$0.0000</p></div>
+                    <div><p class="text-xs text-outline">Quantity</p><p class="text-on-surface font-semibold" id="d-qty">1,000</p></div>
+                    <div><p class="text-xs text-outline">Total USD</p><p class="text-h2 text-primary neon-text-primary font-bold" style="font-size:24px" id="d-usd">$0.0000</p></div>
+                    <div><p class="text-xs text-outline">Total PKR</p><p class="text-h2 text-tertiary font-bold" style="font-size:24px" id="d-pkr">₨0</p></div>
                 </div>
                 <div class="mt-4 pt-3 border-t border-outline-variant/30 flex justify-between text-sm">
                     <span class="text-outline">Balance after order</span>
                     <span id="d-after" class="font-semibold text-on-surface">${{ number_format(auth()->user()->funds ?? 0, 2) }}</span>
                 </div>
             </div>
-
-            <button onclick="goStep(4)" class="w-full bg-gradient-primary text-white font-semibold py-3 rounded-lg neon-glow-primary hover:brightness-110 transition-all text-sm">
+            <button onclick="goStep(5)" class="w-full bg-gradient-primary text-white font-semibold py-3 rounded-lg neon-glow-primary hover:brightness-110 transition-all text-sm">
                 Continue to Confirm <span class="material-symbols-outlined text-[16px] align-middle">arrow_forward</span>
             </button>
         </div>
     </div>
 </div>
 
-{{-- STEP 4: Confirm + Submit --}}
-<div class="step-content fade-up" id="step-4">
+{{-- STEP 5: Confirm + Submit --}}
+<div class="step-content fade-up" id="step-5">
     <div class="glass-card rounded-xl p-md">
         <div class="flex items-center gap-3 mb-6">
-            <button onclick="goStep(3)" class="text-outline hover:text-on-surface transition-colors p-1">
+            <button onclick="goStep(4)" class="text-outline hover:text-on-surface transition-colors p-1">
                 <span class="material-symbols-outlined">arrow_back</span>
             </button>
             <h3 class="font-h3 text-h3 text-on-surface">Confirm Order</h3>
         </div>
-
         <div class="space-y-0 mb-6">
-            @foreach([['Platform','r-platform'],['Service','r-service'],['Link','r-link'],['Quantity','r-qty'],['Total (USD)','r-usd'],['Total (PKR)','r-pkr']] as [$label,$id])
+            @foreach([['Platform','r-platform'],['Category','r-category'],['Service','r-service'],['Link','r-link'],['Quantity','r-qty'],['Total (USD)','r-usd'],['Total (PKR)','r-pkr']] as [$label,$id])
             <div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
                 <span class="text-outline text-sm">{{ $label }}</span>
                 <span id="{{ $id }}" class="text-on-surface font-medium text-sm text-right max-w-[55%] truncate">—</span>
             </div>
             @endforeach
         </div>
-
         <div class="flex items-start gap-3 bg-[#fcd34d]/10 border border-[#fcd34d]/30 rounded-xl p-4 mb-6 text-[#fcd34d] text-sm">
             <span class="material-symbols-outlined text-[18px] flex-shrink-0 mt-0.5">warning</span>
             <span>Verify the link is correct and publicly visible. Orders cannot be cancelled once processing begins.</span>
         </div>
-
         <form method="POST" action="{{ route('orders.store') }}" id="order-form">
             @csrf
             <input type="hidden" name="service_id" id="f-service">
@@ -242,95 +208,169 @@ select option {
 <script>
 const PKR = {{ session('usd_pkr_rate', 280) }};
 const BAL = {{ auth()->user()->funds ?? 0 }};
-let selId=null,selRate=0,selMin=100,selMax=10000,selPlatform='',selName='';
+const SERVICES_URL = '{{ route("orders.services_by_category") }}';
+let selId=null, selRate=0, selMin=100, selMax=10000;
+let selPlatform='', selCategoryId=null, selCategoryName='', selName='';
+let loadedServices = []; // cache fetched services
 
-function selectPlatform(name,btn){
-    document.querySelectorAll('.platform-card').forEach(b=>b.classList.remove('selected'));
+function selectPlatform(name, btn) {
+    document.querySelectorAll('.platform-card').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
-    selPlatform=name;
-    document.getElementById('platform-label').textContent=name;
-    const q=name.toLowerCase();
-    document.querySelectorAll('.svc-row').forEach(r=>{
-        r.style.display=(r.dataset.category.includes(q)||r.dataset.name.includes(q))?'':'none';
+    selPlatform = name;
+    document.getElementById('platform-label').textContent = name;
+
+    // Filter categories by platform name
+    const q = name.toLowerCase();
+    document.querySelectorAll('#cat-list button').forEach(r => {
+        r.style.display = r.dataset.catName.includes(q) ? '' : 'block';
     });
-    setTimeout(()=>goStep(2),200);
+
+    setTimeout(() => goStep(2), 200);
 }
 
-function selectService(id,name,rate,min,max,cat){
-    document.querySelectorAll('.svc-row').forEach(r=>r.classList.remove('selected'));
+function selectCategory(id, name) {
+    selCategoryId = id;
+    selCategoryName = name;
+    document.getElementById('category-label').textContent = name;
+    loadServices(id);
+    setTimeout(() => goStep(3), 200);
+}
+
+function loadServices(categoryId) {
+    const list = document.getElementById('svc-list');
+    const loading = document.getElementById('svc-loading');
+    const empty = document.getElementById('svc-empty');
+
+    // Clear existing service rows (keep loading/empty placeholders)
+    list.querySelectorAll('.svc-row').forEach(r => r.remove());
+    loading.style.display = 'block';
+    empty.style.display = 'none';
+
+    fetch(SERVICES_URL + '?category_id=' + categoryId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(services => {
+        loading.style.display = 'none';
+        loadedServices = services;
+
+        if (!services.length) {
+            empty.style.display = 'block';
+            return;
+        }
+
+        services.forEach(svc => {
+            const tier = svc.rate < 0.5 ? 'Economy' : svc.rate < 1.5 ? 'Standard' : 'Premium';
+            const tierClass = svc.rate < 0.5
+                ? 'bg-tertiary/10 text-tertiary border border-tertiary/30'
+                : svc.rate < 1.5
+                    ? 'bg-primary/10 text-primary border border-primary/30'
+                    : 'bg-secondary/10 text-secondary border border-secondary/30';
+
+            const div = document.createElement('div');
+            div.className = 'svc-row';
+            div.dataset.name = svc.name.toLowerCase();
+            div.innerHTML = `
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-on-surface font-medium text-sm truncate">${escHtml(svc.name)}</p>
+                        <p class="text-outline text-xs mt-0.5">Min: ${Number(svc.min).toLocaleString()} — Max: ${Number(svc.max).toLocaleString()}</p>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-primary font-bold font-inter">$${parseFloat(svc.rate).toFixed(4)}</p>
+                        <p class="text-outline text-[10px]">per 1,000</p>
+                        <span class="inline-flex mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${tierClass}">${tier}</span>
+                    </div>
+                </div>`;
+            div.onclick = () => selectService(svc.id, svc.name, svc.rate, svc.min, svc.max);
+            list.insertBefore(div, loading);
+        });
+    })
+    .catch(() => {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        empty.querySelector('p').textContent = 'Failed to load services. Please try again.';
+    });
+}
+
+function selectService(id, name, rate, min, max) {
+    document.querySelectorAll('#svc-list .svc-row').forEach(r => r.classList.remove('selected'));
     event.currentTarget.classList.add('selected');
-    selId=id;selRate=parseFloat(rate);selMin=parseInt(min);selMax=parseInt(max);selName=name;
-    document.getElementById('svc-label').textContent=name;
-    document.getElementById('d-rate').textContent='$'+selRate.toFixed(4);
-    const sl=document.getElementById('qty-range');
-    sl.min=selMin;sl.max=selMax;sl.step=Math.max(1,Math.floor(selMin));
+    selId=id; selRate=parseFloat(rate); selMin=parseInt(min); selMax=parseInt(max); selName=name;
+    document.getElementById('svc-label').textContent = name;
+    document.getElementById('d-rate').textContent = '$' + selRate.toFixed(4);
+    const sl = document.getElementById('qty-range');
+    sl.min=selMin; sl.max=selMax; sl.step=Math.max(1, Math.floor(selMin));
     sl.value=selMin;
-    document.getElementById('qty-num').value=selMin;
-    document.getElementById('qty-min-label').textContent='Min: '+selMin.toLocaleString();
-    document.getElementById('qty-max-label').textContent='Max: '+selMax.toLocaleString();
+    document.getElementById('qty-num').value = selMin;
+    document.getElementById('qty-min-label').textContent = 'Min: ' + selMin.toLocaleString();
+    document.getElementById('qty-max-label').textContent = 'Max: ' + selMax.toLocaleString();
     calcPrice();
-    setTimeout(()=>goStep(3),200);
+    setTimeout(() => goStep(4), 200);
 }
 
-function filterSvc(){
-    const q=document.getElementById('svc-search').value.toLowerCase();
-    document.querySelectorAll('.svc-row').forEach(r=>r.style.display=r.dataset.name.includes(q)?'':'none');
+function filterSvc() {
+    const q = document.getElementById('svc-search').value.toLowerCase();
+    document.querySelectorAll('#svc-list .svc-row').forEach(r => {
+        r.style.display = r.dataset.name.includes(q) ? '' : 'none';
+    });
 }
 
-function syncNum(){document.getElementById('qty-num').value=document.getElementById('qty-range').value;}
-function syncSlider(){
-    let v=parseInt(document.getElementById('qty-num').value)||selMin;
-    v=Math.min(Math.max(v,selMin),selMax);
-    document.getElementById('qty-range').value=v;calcPrice();
+function syncNum() { document.getElementById('qty-num').value = document.getElementById('qty-range').value; }
+function syncSlider() {
+    let v = parseInt(document.getElementById('qty-num').value) || selMin;
+    v = Math.min(Math.max(v, selMin), selMax);
+    document.getElementById('qty-range').value = v; calcPrice();
 }
 
-function calcPrice(){
-    const qty=parseInt(document.getElementById('qty-range').value)||selMin;
-    const total=(qty/1000)*selRate;
-    document.getElementById('d-qty').textContent=qty.toLocaleString();
-    document.getElementById('d-usd').textContent='$'+total.toFixed(4);
-    document.getElementById('d-pkr').textContent='₨'+Math.round(total*PKR).toLocaleString();
-    const after=BAL-total;
-    const el=document.getElementById('d-after');
-    el.textContent='$'+Math.max(0,after).toFixed(2);
-    el.className=after<0?'font-semibold text-error':'font-semibold text-on-surface';
+function calcPrice() {
+    const qty = parseInt(document.getElementById('qty-range').value) || selMin;
+    const total = (qty / 1000) * selRate;
+    document.getElementById('d-qty').textContent = qty.toLocaleString();
+    document.getElementById('d-usd').textContent = '$' + total.toFixed(4);
+    document.getElementById('d-pkr').textContent = '₨' + Math.round(total * PKR).toLocaleString();
+    const after = BAL - total;
+    const el = document.getElementById('d-after');
+    el.textContent = '$' + Math.max(0, after).toFixed(2);
+    el.className = after < 0 ? 'font-semibold text-error' : 'font-semibold text-on-surface';
 }
 
-function goStep(n){
-    if(n===3&&!selId){alert('Select a service first');return;}
-    if(n===4&&!document.getElementById('order-link').value.trim()){alert('Enter a link');return;}
-    for(let i=1;i<=4;i++){
-        document.getElementById('step-'+i).classList.toggle('active',i===n);
-        const sc=document.getElementById('sc-'+i);
-        sc.className='step-circle'+(i===n?' active':i<n?' done':'');
-        sc.innerHTML=i<n?'<span class="material-symbols-outlined text-[14px]">check</span>':i;
+function goStep(n) {
+    const total = 5;
+    if (n === 4 && !selId) { showToast('Select a service first', 'warning'); return; }
+    if (n === 5 && !document.getElementById('order-link').value.trim()) { showToast('Enter a link', 'warning'); return; }
+    for (let i = 1; i <= total; i++) {
+        document.getElementById('step-' + i).classList.toggle('active', i === n);
+        const sc = document.getElementById('sc-' + i);
+        sc.className = 'step-circle' + (i === n ? ' active' : i < n ? ' done' : '');
+        sc.innerHTML = i < n ? '<span class="material-symbols-outlined text-[14px]">check</span>' : i;
     }
-    if(n===4){
-        const qty=document.getElementById('qty-range').value;
-        const link=document.getElementById('order-link').value;
-        const total=(parseInt(qty)/1000)*selRate;
-        document.getElementById('r-platform').textContent=selPlatform;
-        document.getElementById('r-service').textContent=selName;
-        document.getElementById('r-link').textContent=link;
-        document.getElementById('r-qty').textContent=parseInt(qty).toLocaleString();
-        document.getElementById('r-usd').textContent='$'+total.toFixed(4);
-        document.getElementById('r-pkr').textContent='₨'+Math.round(total*PKR).toLocaleString();
+    if (n === 5) {
+        const qty = document.getElementById('qty-range').value;
+        const link = document.getElementById('order-link').value;
+        const total = (parseInt(qty) / 1000) * selRate;
+        document.getElementById('r-platform').textContent = selPlatform;
+        document.getElementById('r-category').textContent = selCategoryName;
+        document.getElementById('r-service').textContent = selName;
+        document.getElementById('r-link').textContent = link;
+        document.getElementById('r-qty').textContent = parseInt(qty).toLocaleString();
+        document.getElementById('r-usd').textContent = '$' + total.toFixed(4);
+        document.getElementById('r-pkr').textContent = '₨' + Math.round(total * PKR).toLocaleString();
     }
-    window.scrollTo({top:0,behavior:'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function prepareSubmit(){
-    const link=document.getElementById('order-link').value.trim();
-    if(!selId||!link){alert('Missing fields');return false;}
-    document.getElementById('f-service').value=selId;
-    document.getElementById('f-link').value=link;
-    document.getElementById('f-quantity').value=document.getElementById('qty-range').value;
+function prepareSubmit() {
+    const link = document.getElementById('order-link').value.trim();
+    if (!selId || !link) { showToast('Missing fields', 'danger'); return false; }
+    document.getElementById('f-service').value = selId;
+    document.getElementById('f-link').value = link;
+    document.getElementById('f-quantity').value = document.getElementById('qty-range').value;
     return true;
 }
 
-function syncNow(){
-   fetch('{{ route("admin.sync.all") }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'}})
-    .then(r=>r.json()).then(d=>{alert(d.message||'Synced!');setTimeout(()=>location.reload(),1500);});
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 @endsection
