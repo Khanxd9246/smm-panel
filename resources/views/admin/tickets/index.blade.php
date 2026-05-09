@@ -17,6 +17,7 @@
             <p class="text-tertiary font-medium">{{ session('success') }}</p>
         </div>
         @endif
+        
         @if($errors->any())
         <div class="glass-card p-4 rounded-xl mb-6 border-l-4 border-error bg-error/5">
             <p class="text-error font-medium">{{ $errors->first() }}</p>
@@ -80,12 +81,12 @@
                                             @json($ticket->subject),
                                             @json($ticket->message),
                                             @json($ticket->status),
-                                            @json($ticket->messages->map(fn($m) => [
+                                            {{ json_encode($ticket->messages->map(fn($m) => [
                                                 'msg'      => $m->message,
                                                 'is_admin' => $m->is_admin,
                                                 'name'     => $m->user->name ?? 'Admin',
                                                 'time'     => $m->created_at->format('d M H:i'),
-                                            ]))
+                                            ])) }}
                                         )"
                                         class="text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
                                     View & Reply
@@ -162,7 +163,7 @@ function openTicketModal(id, subject, message, status, messages) {
     const orig = document.createElement('div');
     orig.className = 'flex gap-3 flex-row-reverse';
     orig.innerHTML = `
-        <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">U</div>
+        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">U</div>
         <div class="bg-surface-container rounded-xl p-3 max-w-md ml-auto">
             <p class="text-on-surface text-sm">${escHtml(message)}</p>
             <p class="text-on-surface-variant text-xs mt-1">Original message</p>
@@ -173,13 +174,13 @@ function openTicketModal(id, subject, message, status, messages) {
         const div = document.createElement('div');
         div.className = 'flex gap-3' + (m.is_admin ? '' : ' flex-row-reverse');
         div.innerHTML = `
-            <div class="w-8 h-8 rounded-full ${m.is_admin
-                ? 'bg-secondary/20 border border-secondary/30'
-                : 'bg-gradient-primary'} flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+            <div class="w-8 h-8 rounded-full ${m.is_admin 
+                ? 'bg-secondary/20 border border-secondary/30' 
+                : 'bg-primary'} flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                 ${m.is_admin ? 'A' : 'U'}
             </div>
-            <div class="${m.is_admin
-                ? 'bg-primary/10 border border-primary/20'
+            <div class="${m.is_admin 
+                ? 'bg-primary/10 border border-primary/20' 
                 : 'bg-surface-container'} rounded-xl p-3 max-w-md ${m.is_admin ? '' : 'ml-auto'}">
                 <p class="text-on-surface text-sm">${escHtml(m.msg)}</p>
                 <p class="text-on-surface-variant text-xs mt-1">${escHtml(m.name)} · ${escHtml(m.time)}</p>
@@ -187,7 +188,8 @@ function openTicketModal(id, subject, message, status, messages) {
         container.appendChild(div);
     });
 
-    container.scrollTop = container.scrollHeight;
+    // Auto scroll to bottom
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
 
     // Hide reply area if already closed
     document.getElementById('modal-actions').style.display = status === 'closed' ? 'none' : 'block';
@@ -209,6 +211,7 @@ function closeTicketModal() {
 }
 
 function escHtml(str) {
+    if (!str) return "";
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
