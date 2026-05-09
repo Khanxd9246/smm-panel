@@ -77,7 +77,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [OrderController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('store');
-        Route::get('services-by-category', [OrderController::class, 'servicesByCategory'])->name('services_by_category');
         Route::get('{order}', [OrderController::class, 'show'])->name('show');
     });
 
