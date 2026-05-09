@@ -46,7 +46,7 @@ class RegisterController extends Controller
 
         $user = User::create([
             'name'        => $validated['name'],
-            // FIX: Using absolute path to ensure the class is found in production
+            // FIX: Absolute path used here to bypass the "Class not found" error
             'email'       => \Illuminate\Support\Facades\Str::lower(trim($validated['email'])),
             'password'    => Hash::make($validated['password']),
             'referred_by' => $referrer?->id,
