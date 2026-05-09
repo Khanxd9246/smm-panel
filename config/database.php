@@ -87,7 +87,7 @@ return [
     //  - Atomic operations (prevents race conditions in balance updates)
     //  - Pub/sub for real-time features
     'redis' => [
-        'client' => env('REDIS_CLIENT', 'phpredis'), // phpredis > predis (faster)
+        'client' => env('REDIS_CLIENT', 'predis'),
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
