@@ -17,7 +17,7 @@
             <p class="text-tertiary font-medium">{{ session('success') }}</p>
         </div>
         @endif
-        
+
         @if($errors->any())
         <div class="glass-card p-4 rounded-xl mb-6 border-l-4 border-error bg-error/5">
             <p class="text-error font-medium">{{ $errors->first() }}</p>
@@ -76,19 +76,19 @@
                                 <p class="text-on-surface-variant text-sm">{{ $ticket->created_at->format('d M Y H:i') }}</p>
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <button onclick="openTicketModal(
-                                            {{ $ticket->id }},
-                                            @json($ticket->subject),
-                                            @json($ticket->message),
-                                            @json($ticket->status),
-                                            {{ json_encode($ticket->messages->map(fn($m) => [
-                                                'msg'      => $m->message,
-                                                'is_admin' => $m->is_admin,
-                                                'name'     => $m->user->name ?? 'Admin',
-                                                'time'     => $m->created_at->format('d M H:i'),
-                                            ])) }}
-                                        )"
-                                        class="text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
+                                <button onclick='openTicketModal(
+                                    {{ $ticket->id }},
+                                    @json($ticket->subject),
+                                    @json($ticket->message),
+                                    @json($ticket->status),
+                                    {!! json_encode($ticket->messages->map(fn($m) => [
+                                        "msg"      => $m->message,
+                                        "is_admin" => $m->is_admin,
+                                        "name"     => $m->user->name ?? "Admin",
+                                        "time"     => $m->created_at->format("d M H:i"),
+                                    ])) !!}
+                                )'
+                                class="text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
                                     View & Reply
                                 </button>
                             </td>
@@ -154,6 +154,8 @@
 function openTicketModal(id, subject, message, status, messages) {
     document.getElementById('modal-subject').textContent = subject + ' #' + id;
     document.getElementById('modal-meta').textContent    = 'Status: ' + status.charAt(0).toUpperCase() + status.slice(1);
+    
+    // Updated path to match your admin.tickets.reply route
     document.getElementById('replyForm').action          = '/admin/tickets/' + id + '/reply';
 
     const container = document.getElementById('modal-messages');
@@ -188,13 +190,10 @@ function openTicketModal(id, subject, message, status, messages) {
         container.appendChild(div);
     });
 
-    // Auto scroll to bottom
     setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
 
-    // Hide reply area if already closed
     document.getElementById('modal-actions').style.display = status === 'closed' ? 'none' : 'block';
 
-    // Wire close-ticket button
     document.getElementById('close-ticket-btn').onclick = function () {
         if (!confirm('Close this ticket?')) return;
         const f = document.getElementById('closeTicketForm');
