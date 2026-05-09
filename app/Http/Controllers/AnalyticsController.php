@@ -15,19 +15,20 @@ class AnalyticsController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $currentMonth = date('m'); // Zero-padded month for SQLite strftime
+        $currentMonth = (int) now()->format('m');
+        $currentYear  = (int) now()->format('Y');
 
-        // FIXED HIGH-3: Consolidate 7 queries into 1 aggregate query
+        // Consolidated aggregate query — PostgreSQL compatible
         $stats = Order::where('user_id', $user->id)
             ->selectRaw("
                 SUM(CASE WHEN status = 'completed' THEN total ELSE 0 END) as total_spent,
                 COUNT(*) as total_orders,
-                COUNT(CASE WHEN strftime('%m', created_at) = ? THEN 1 END) as orders_this_month,
+                COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = ? AND EXTRACT(YEAR FROM created_at) = ? THEN 1 END) as orders_this_month,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
                 COUNT(CASE WHEN status = 'in progress' THEN 1 END) as processing,
                 COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled
-            ", [$currentMonth])
+            ", [$currentMonth, $currentYear])
             ->first();
 
         $totalSpent = $stats->total_spent ?? 0;
