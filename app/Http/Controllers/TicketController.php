@@ -7,8 +7,6 @@ use App\Models\TicketMessage;
 use Illuminate\Http\Request;
 use App\Http\Requests\ReplyTicketRequest;
 use App\Http\Requests\StoreTicketRequest;
-use App\Models\Ticket;
-use App\Models\TicketMessage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -38,14 +36,6 @@ class TicketController extends Controller
         return view('support.index', compact('tickets'));
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'subject' => 'required|string|max:255',
-            'message' => 'required|string|max:5000',
-            'category' => 'required|in:order,payment,technical,other',
-            'order_id' => 'nullable|integer|exists:orders,id',
-        ]);
     public function store(StoreTicketRequest $request)
     {
         $validated = $request->validated();
@@ -84,7 +74,9 @@ class TicketController extends Controller
     public function show(Ticket $ticket)
     {
         abort_unless($ticket->user_id === Auth::id(), 403);
+        
         $ticket->load('messages.user');
+        
         $tickets = Ticket::where('user_id', Auth::id())
             ->latest()
             ->get();
@@ -92,13 +84,6 @@ class TicketController extends Controller
         return view('support.index', compact('ticket', 'tickets'));
     }
 
-    public function reply(Request $request, Ticket $ticket)
-    {
-        abort_unless($ticket->user_id === Auth::id(), 403);
-
-        $validated = $request->validate([
-            'message' => 'required|string|max:5000'
-        ]);
     public function reply(ReplyTicketRequest $request, Ticket $ticket)
     {
         abort_unless($ticket->user_id === Auth::id(), 403);
