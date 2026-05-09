@@ -4,6 +4,12 @@
 
 @section('css')
 <style>
+/* Global fix for dropdowns/selects */
+select option {
+    background-color: #1a1c1e !important;
+    color: white !important;
+}
+
 .step-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
 .step-circle { width:36px; height:36px; border-radius:50%; border:2px solid #424754; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#8c909f; transition:all 0.3s; }
 .step-circle.active { border-color:#adc6ff; color:#adc6ff; background:rgba(173,198,255,0.1); box-shadow:0 0 12px rgba(173,198,255,0.3); }
@@ -11,15 +17,27 @@
 .step-label { font-size:10px; color:#8c909f; font-weight:600; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
 .step-circle.active + .step-label { color:#adc6ff; }
 .step-line { flex:1; height:1px; background:#424754; margin-bottom:18px; }
-.platform-card { background:rgba(23,31,51,0.5); border:1px solid rgba(173,198,255,0.1); border-radius:12px; padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; transition:all 0.2s; }
+
+/* Fixed Platform Cards for visibility */
+.platform-card { background:rgba(255, 255, 255, 0.05); border:1px solid rgba(173,198,255,0.1); border-radius:12px; padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; transition:all 0.2s; }
 .platform-card:hover { border-color:#adc6ff; transform:translateY(-2px); box-shadow:0 0 15px rgba(173,198,255,0.15); }
 .platform-card.selected { border-color:#adc6ff; background:rgba(173,198,255,0.08); box-shadow:0 0 15px rgba(173,198,255,0.2); }
 .platform-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; flex-shrink:0; }
 .platform-name { font-size:11px; font-weight:600; color:#8c909f; text-align:center; }
 .platform-card.selected .platform-name { color:#adc6ff; }
-.svc-row { padding:12px 14px; border-radius:10px; border:1px solid rgba(173,198,255,0.1); cursor:pointer; transition:all 0.15s; margin-bottom:6px; background:rgba(23,31,51,0.3); }
+
+/* Fixed Service Rows for visibility */
+.svc-row { padding:12px 14px; border-radius:10px; border:1px solid rgba(173,198,255,0.1); cursor:pointer; transition:all 0.15s; margin-bottom:6px; background:rgba(255, 255, 255, 0.03); }
 .svc-row:hover { border-color:#adc6ff; background:rgba(173,198,255,0.05); }
 .svc-row.selected { border-color:#adc6ff; background:rgba(173,198,255,0.08); }
+
+/* Inputs with background to prevent white-on-white */
+.glass-input-fixed {
+    background-color: #1a1c1e !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    color: white !important;
+}
+
 .step-content { display:none; }
 .step-content.active { display:block; }
 </style>
@@ -80,7 +98,8 @@
             </div>
         </div>
         <input type="text" id="svc-search" placeholder="Search services..." oninput="filterSvc()"
-            class="w-full glass-input py-2.5 px-3 mb-4 font-body-sm placeholder:text-outline/50 bg-transparent rounded-lg border border-outline-variant/40 focus:border-primary transition-colors">
+            class="w-full glass-input-fixed py-2.5 px-3 mb-4 font-body-sm placeholder:text-outline/50 rounded-lg border focus:border-primary transition-colors">
+        
         <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="svc-list">
             @forelse($services as $svc)
             <div class="svc-row" onclick="selectService({{ $svc->id }},'{{ addslashes($svc->name) }}',{{ $svc->rate }},{{ $svc->min }},{{ $svc->max }},'{{ strtolower($svc->category->name ?? '') }}')"
@@ -128,14 +147,14 @@
         <div class="space-y-5">
             <div class="space-y-2">
                 <label class="font-label-caps text-label-caps text-outline">Link / Target URL *</label>
-                <input type="url" id="order-link" class="w-full glass-input py-2.5 px-3 font-body-sm placeholder:text-outline/50 bg-transparent" placeholder="https://...">
+                <input type="url" id="order-link" class="w-full glass-input-fixed py-2.5 px-3 font-body-sm placeholder:text-outline/50 rounded-lg" placeholder="https://...">
                 <p class="text-xs text-outline">Must be publicly accessible</p>
             </div>
 
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <label class="font-label-caps text-label-caps text-outline">Quantity</label>
-                    <input type="number" id="qty-num" class="w-24 glass-input py-1.5 px-3 text-sm text-center bg-transparent" oninput="syncSlider()">
+                    <input type="number" id="qty-num" class="w-24 glass-input-fixed py-1.5 px-3 text-sm text-center rounded-lg" oninput="syncSlider()">
                 </div>
                 <input type="range" id="qty-range" min="100" max="10000" step="100" value="1000"
                     class="w-full accent-blue-400" oninput="syncNum();calcPrice()">
@@ -278,8 +297,8 @@ function calcPrice(){
 }
 
 function goStep(n){
-    if(n===3&&!selId){showToast('Select a service first','warning');return;}
-    if(n===4&&!document.getElementById('order-link').value.trim()){showToast('Enter a link','warning');return;}
+    if(n===3&&!selId){alert('Select a service first');return;}
+    if(n===4&&!document.getElementById('order-link').value.trim()){alert('Enter a link');return;}
     for(let i=1;i<=4;i++){
         document.getElementById('step-'+i).classList.toggle('active',i===n);
         const sc=document.getElementById('sc-'+i);
@@ -302,7 +321,7 @@ function goStep(n){
 
 function prepareSubmit(){
     const link=document.getElementById('order-link').value.trim();
-    if(!selId||!link){showToast('Missing fields','danger');return false;}
+    if(!selId||!link){alert('Missing fields');return false;}
     document.getElementById('f-service').value=selId;
     document.getElementById('f-link').value=link;
     document.getElementById('f-quantity').value=document.getElementById('qty-range').value;
@@ -311,7 +330,7 @@ function prepareSubmit(){
 
 function syncNow(){
    fetch('{{ route("admin.sync.all") }}', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'}})
-    .then(r=>r.json()).then(d=>{showToast(d.message||'Synced!','success');setTimeout(()=>location.reload(),1500);});
+    .then(r=>r.json()).then(d=>{alert(d.message||'Synced!');setTimeout(()=>location.reload(),1500);});
 }
 </script>
 @endsection
