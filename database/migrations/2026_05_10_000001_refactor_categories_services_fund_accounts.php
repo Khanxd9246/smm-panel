@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Refactor Migration — SMM Panel
  * ─────────────────────────────────────────────────────────────────────────────
- * 1. categories  → add `platform` + `type` columns
- * 2. services    → add composite indexes (price ASC, category_id) for filtering
+ * 1. categories   → add `platform` + `type` columns
+ * 2. services     → add composite indexes (price ASC, category_id) for filtering
  * 3. fund_accounts → add `is_active` boolean (mirrors PaymentAccount pattern)
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -30,9 +30,7 @@ return new class extends Migration
         });
 
         // Seed canonical platform+type values from existing category names.
-        // Adjust the mapping below to match your real data.
         $map = [
-            // [LIKE pattern]  => [platform, type]
             '%instagram%follower%' => ['instagram', 'followers'],
             '%instagram%like%'     => ['instagram', 'likes'],
             '%instagram%view%'     => ['instagram', 'views'],
@@ -66,17 +64,19 @@ return new class extends Migration
 
         // ── 3. FUND_ACCOUNTS ────────────────────────────────────────────────
         // Add is_active boolean alongside the existing enum status column.
-        // Both are kept so existing code still works; is_active is the new
-        // canonical toggle used by admin panel toggle button.
         if (!Schema::hasColumn('fund_accounts', 'is_active')) {
             Schema::table('fund_accounts', function (Blueprint $table) {
                 $table->boolean('is_active')->default(true)->after('status');
                 $table->index('is_active', 'fund_accounts_is_active_idx');
             });
 
-            // Sync is_active from the existing status column
+            /**
+             * FIXED FOR POSTGRESQL:
+             * We use 'true' and 'false' keywords instead of 1 and 0 
+             * to avoid the "Datatype mismatch" error on Railway.
+             */
             DB::table('fund_accounts')->update([
-                'is_active' => DB::raw("CASE WHEN status = 'active' THEN 1 ELSE 0 END"),
+                'is_active' => DB::raw("CASE WHEN status = 'active' THEN true ELSE false END"),
             ]);
         }
     }
