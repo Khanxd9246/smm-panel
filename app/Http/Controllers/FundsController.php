@@ -21,7 +21,13 @@ namespace App\Http\Controllers;
 // ============================================================================
 
 use App\Http\Requests\StorePaymentRequest;
+<<<<<<< HEAD
 use App\Models\PaymentLog;
+=======
+use App\Models\FundAccount;
+use App\Models\PaymentLog;
+use App\Models\Setting;
+>>>>>>> 491ed81 (initial commit)
 use App\Models\Transaction;
 use App\Services\ExchangeRateService;
 use Illuminate\Http\JsonResponse;
@@ -40,7 +46,14 @@ class FundsController extends Controller
 
     public function index()
     {
+<<<<<<< HEAD
         return view('funds.index');
+=======
+        $accounts = FundAccount::active()->orderBy('name')->get();
+        $whatsappLink = Setting::get('whatsapp_link');
+
+        return view('funds.index', compact('accounts', 'whatsappLink'));
+>>>>>>> 491ed81 (initial commit)
     }
 
     // ── Stripe ────────────────────────────────────────────────────────────────
@@ -187,6 +200,7 @@ class FundsController extends Controller
     {
         $validated = $request->validated();
 
+<<<<<<< HEAD
         // Prevent duplicate reference submissions
         $exists = Transaction::where('reference', $validated['reference'])
             ->where('type', 'deposit')
@@ -198,10 +212,25 @@ class FundsController extends Controller
 
         // Convert PKR → USD using live exchange rate
         $rate        = ExchangeRateService::getUsdToPkr();
+=======
+        $account = FundAccount::active()->find($validated['fund_account_id']);
+        if (! $account) {
+            return back()->withErrors(['fund_account_id' => 'Selected payment account is not available.']);
+        }
+
+        $reference = strtoupper($validated['reference']);
+        $duplicate = Transaction::where('reference', $reference)->exists();
+        if ($duplicate) {
+            return back()->withErrors(['reference' => 'This transaction ID has already been submitted.']);
+        }
+
+        $rate = ExchangeRateService::getUsdToPkr();
+>>>>>>> 491ed81 (initial commit)
         $amountInUsd = round($validated['amount'] / $rate, 6);
 
         try {
             $transaction = Transaction::create([
+<<<<<<< HEAD
                 'user_id'     => Auth::id(),
                 'amount'      => $amountInUsd,
                 'type'        => 'deposit',
@@ -209,28 +238,54 @@ class FundsController extends Controller
                 'status'      => 'pending',
                 'reference'   => $validated['reference'],
                 'gateway'     => $validated['method'],
+=======
+                'user_id'         => Auth::id(),
+                'amount'          => $amountInUsd,
+                'type'            => 'deposit',
+                'description'     => 'Manual deposit request to ' . $account->name,
+                'status'          => 'pending',
+                'reference'       => $reference,
+                'gateway'         => 'manual',
+                'fund_account_id' => $account->id,
+>>>>>>> 491ed81 (initial commit)
             ]);
 
             PaymentLog::create([
                 'user_id'        => Auth::id(),
                 'transaction_id' => $transaction->id,
+<<<<<<< HEAD
                 'gateway'        => $validated['method'],
                 'status'         => 'pending',
                 'amount'         => $amountInUsd,
                 'reference'      => $validated['reference'],
+=======
+                'gateway'        => 'manual',
+                'status'         => 'pending',
+                'amount'         => $amountInUsd,
+                'reference'      => $reference,
+>>>>>>> 491ed81 (initial commit)
                 'ip_address'     => $request->ip(),
             ]);
 
             Log::info('Manual payment submitted', [
                 'transaction_id' => $transaction->id,
                 'user_id'        => Auth::id(),
+<<<<<<< HEAD
                 'method'         => $validated['method'],
+=======
+                'account_id'     => $account->id,
+>>>>>>> 491ed81 (initial commit)
                 'amount_pkr'     => $validated['amount'],
                 'amount_usd'     => $amountInUsd,
             ]);
 
+<<<<<<< HEAD
             return redirect()->route('transactions.index')
                 ->with('success', 'Payment submitted and pending admin verification (10-30 minutes).');
+=======
+            return redirect()->route('funds.index')
+                ->with('success', 'Payment request submitted and pending admin verification.');
+>>>>>>> 491ed81 (initial commit)
 
         } catch (\Throwable $e) {
             Log::error('Manual payment submission failed: ' . $e->getMessage());

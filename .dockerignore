@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Laravel Docker ignore rules
 .git
 .gitignore
@@ -12,3 +13,19 @@ public/hot
 storage/*
 !storage/.gitignore
 bootstrap/cache/*.php
+=======
+# Laravel Docker ignore rules
+.git
+.gitignore
+.env
+.env.*
+composer.phar
+node_modules
+vendor
+npm-debug.log*
+yarn-error.log*
+public/hot
+storage/*
+!storage/.gitignore
+bootstrap/cache/*.php
+>>>>>>> 491ed81 (initial commit)

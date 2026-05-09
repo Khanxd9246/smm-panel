@@ -178,10 +178,28 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Tickets Management
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [AdminController::class, 'ticketsIndex'])->name('index');
+<<<<<<< HEAD
+=======
+        Route::get('{ticket}', [AdminController::class, 'ticketsShow'])->name('show');
+>>>>>>> 491ed81 (initial commit)
         Route::post('{ticket}/reply', [AdminController::class, 'ticketsReply'])->name('reply');
         Route::post('{ticket}/close', [AdminController::class, 'ticketsClose'])->name('close');
     });
 
+<<<<<<< HEAD
+=======
+    // Fund Accounts
+    Route::prefix('fund-accounts')->name('fund_accounts.')->group(function () {
+        Route::get('/', [AdminController::class, 'fundAccountsIndex'])->name('index');
+        Route::get('create', [AdminController::class, 'fundAccountsCreate'])->name('create');
+        Route::post('/', [AdminController::class, 'fundAccountsStore'])->name('store');
+        Route::get('{fundAccount}/edit', [AdminController::class, 'fundAccountsEdit'])->name('edit');
+        Route::put('{fundAccount}', [AdminController::class, 'fundAccountsUpdate'])->name('update');
+    });
+
+    Route::post('settings', [AdminController::class, 'settingsUpdate'])->name('settings.update');
+
+>>>>>>> 491ed81 (initial commit)
     // Analytics & Logs
     Route::get('logs/activity', [AdminController::class, 'activityLogs'])->name('logs.activity');
     Route::get('logs/payments', [AdminController::class, 'paymentLogs'])->name('logs.payments');

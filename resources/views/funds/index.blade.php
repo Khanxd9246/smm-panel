@@ -17,6 +17,18 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
 
+<<<<<<< HEAD
+=======
+@if(session('success'))
+    <div class="glass-card rounded-xl p-4 mb-6 border-l-4 border-tertiary bg-tertiary/5">
+        <p class="text-tertiary font-medium">{{ session('success') }}</p>
+        @if(!empty($whatsappLink))
+            <p class="text-on-surface-variant text-sm mt-2">Need faster approval? <a href="{{ $whatsappLink }}" target="_blank" class="text-primary hover:underline">Contact us on WhatsApp</a></p>
+        @endif
+    </div>
+@endif
+
+>>>>>>> 491ed81 (initial commit)
 {{-- Current balance hero --}}
 <div class="glass-card rounded-xl p-md mb-6 relative overflow-hidden fade-up">
     <div class="absolute inset-0 opacity-10" style="background:linear-gradient(135deg,#4d8eff22,transparent)"></div>
@@ -85,6 +97,55 @@
     </div>
 </div>
 
+<<<<<<< HEAD
+=======
+@if($accounts->isNotEmpty())
+@php
+    $selectedAccount = $accounts->firstWhere('id', old('fund_account_id'));
+@endphp
+<div class="glass-card rounded-xl p-md mb-6 fade-up">
+    <h2 class="font-h3 text-h3 text-on-surface mb-4">Manual Transfer Accounts</h2>
+    <div class="space-y-4 mb-4">
+        @foreach($accounts as $account)
+        <button type="button" onclick="selectManualAccount({{ $account->id }}, {!! json_encode($account->name) !!})" class="w-full text-left glass-card rounded-xl p-4 border border-outline-variant/30 hover:border-primary/50 transition-all flex items-center justify-between gap-4">
+            <div>
+                <p class="font-semibold text-on-surface">{{ $account->name }}</p>
+                <p class="text-on-surface-variant text-sm mt-1">{{ $account->iban ?? $account->account_number ?? 'No account details provided' }}</p>
+                @if($account->notes)
+                    <p class="text-outline text-xs mt-2">{{ $account->notes }}</p>
+                @endif
+            </div>
+            <span id="account-{{ $account->id }}" class="px-3 py-1 rounded-full text-xs font-semibold bg-outline/10 text-outline">Select</span>
+        </button>
+        @endforeach
+    </div>
+
+    <form method="POST" action="{{ route('funds.manual') }}" class="space-y-4">
+        @csrf
+        <input type="hidden" name="fund_account_id" id="fund_account_id" value="{{ old('fund_account_id') }}">
+
+        <div>
+            <label class="block text-sm font-semibold text-on-surface mb-2">Selected Account</label>
+            <div id="selected-account" class="glass-input w-full py-3 px-4 rounded-xl bg-surface-container text-on-surface">{{ old('selected_account_name', $selectedAccount?->name ?? 'No account selected') }}</div>
+            @error('fund_account_id')<p class="text-error text-sm mt-1">{{ $message }}</p>@enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-on-surface mb-2">Amount (PKR)</label>
+            <input type="number" name="amount" value="{{ old('amount') }}" min="{{ config('services.payments.min_deposit', 100) }}" max="{{ config('services.payments.max_deposit', 500000) }}" step="1" required class="glass-input w-full" placeholder="Enter amount in PKR">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-on-surface mb-2">Transaction ID</label>
+            <input type="text" name="reference" value="{{ old('reference') }}" maxlength="100" required class="glass-input w-full" placeholder="External transaction ID or reference">
+        </div>
+
+        <button type="submit" class="w-full bg-gradient-primary text-white font-semibold py-3.5 rounded-lg neon-glow-primary hover:brightness-110 transition-all">Submit Manual Payment Request</button>
+    </form>
+</div>
+@endif
+
+>>>>>>> 491ed81 (initial commit)
 {{-- Amount section --}}
 <div id="amount-section" class="glass-card rounded-xl p-md mb-6 fade-up" style="display:none">
     <h3 class="font-h3 text-h3 text-on-surface mb-5">Deposit Details</h3>
@@ -172,6 +233,26 @@ function selectMethod(id){
     document.getElementById('amount-section').style.display='block';
 }
 
+<<<<<<< HEAD
+=======
+function selectManualAccount(id, name) {
+    document.getElementById('fund_account_id').value = id;
+    const selected = document.getElementById('selected-account');
+    if (selected) {
+        selected.textContent = name;
+    }
+    document.querySelectorAll('[id^="account-"]').forEach(card => {
+        card.classList.remove('bg-primary/10', 'border-primary/50', 'text-primary');
+        card.classList.add('bg-outline/10', 'text-outline');
+    });
+    const active = document.getElementById('account-' + id);
+    if (active) {
+        active.classList.remove('bg-outline/10', 'text-outline');
+        active.classList.add('bg-primary/10', 'border-primary/50', 'text-primary');
+    }
+}
+
+>>>>>>> 491ed81 (initial commit)
 function calcFee(){
     if(!activeMethod)return;
     const raw=parseFloat(document.getElementById('amount-input').value)||0;

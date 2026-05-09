@@ -2,9 +2,16 @@
 
 namespace App\Http\Controllers;
 
+<<<<<<< HEAD
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use Illuminate\Http\Request;
+=======
+use App\Http\Requests\ReplyTicketRequest;
+use App\Http\Requests\StoreTicketRequest;
+use App\Models\Ticket;
+use App\Models\TicketMessage;
+>>>>>>> 491ed81 (initial commit)
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -34,6 +41,7 @@ class TicketController extends Controller
         return view('support.index', compact('tickets'));
     }
 
+<<<<<<< HEAD
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -42,6 +50,11 @@ class TicketController extends Controller
             'category' => 'required|in:order,payment,technical,other',
             'order_id' => 'nullable|integer|exists:orders,id',
         ]);
+=======
+    public function store(StoreTicketRequest $request)
+    {
+        $validated = $request->validated();
+>>>>>>> 491ed81 (initial commit)
 
         try {
             $ticket = Ticket::create([
@@ -85,6 +98,7 @@ class TicketController extends Controller
         return view('support.index', compact('ticket', 'tickets'));
     }
 
+<<<<<<< HEAD
     public function reply(Request $request, Ticket $ticket)
     {
         abort_unless($ticket->user_id === Auth::id(), 403);
@@ -92,6 +106,17 @@ class TicketController extends Controller
         $validated = $request->validate([
             'message' => 'required|string|max:5000'
         ]);
+=======
+    public function reply(ReplyTicketRequest $request, Ticket $ticket)
+    {
+        abort_unless($ticket->user_id === Auth::id(), 403);
+
+        if ($ticket->status === 'closed') {
+            return back()->withErrors(['error' => 'Cannot reply to a closed ticket.']);
+        }
+
+        $validated = $request->validated();
+>>>>>>> 491ed81 (initial commit)
 
         try {
             TicketMessage::create([
