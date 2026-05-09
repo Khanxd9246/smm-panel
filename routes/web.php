@@ -74,6 +74,10 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrderController::class, 'index'])->name('index');
         Route::get('new', [OrderController::class, 'create'])->name('create');
+        
+        // --- FIXED: Added the missing AJAX route for the dashboard quick-order widget ---
+        Route::get('services-by-category', [OrderController::class, 'getServicesByCategory'])->name('services_by_category');
+        
         Route::post('/', [OrderController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('store');
@@ -146,9 +150,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Fund Requests (admin review)
     Route::prefix('fund-requests')->name('fund-requests.')->group(function () {
-        Route::get('/',                        [\App\Http\Controllers\Admin\PaymentAccountController::class, 'fundRequests'])->name('index');
-        Route::post('{fundRequest}/approve',   [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
-        Route::post('{fundRequest}/reject',    [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
+        Route::get('/',                         [\App\Http\Controllers\Admin\PaymentAccountController::class, 'fundRequests'])->name('index');
+        Route::post('{fundRequest}/approve',    [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
+        Route::post('{fundRequest}/reject',     [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
     });
 
     // API Providers Management
@@ -158,6 +162,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/', [AdminController::class, 'providersStore'])->name('store');
         Route::get('{provider}/edit', [AdminController::class, 'providersEdit'])->name('edit');
         Route::put('{provider}', [AdminController::class, 'providersUpdate'])->name('update');
+        // syncProvider is a POST route based on your controller call
         Route::post('{provider}/sync', [AdminController::class, 'syncProvider'])->name('sync');
     });
 
