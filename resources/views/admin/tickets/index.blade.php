@@ -1,19 +1,15 @@
 @extends('layouts.app')
-@section('title', 'Payment Accounts')
-@section('page-title', 'Payment Accounts')
+@section('title', 'Support Tickets')
+@section('page-title', 'Support Tickets')
 
 @section('content')
 <div class="flex-1 p-6">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-on-surface">Payment Accounts</h1>
-                <p class="text-on-surface-variant mt-1">Manage accounts users send money to</p>
+                <h1 class="text-2xl font-bold text-on-surface">Support Tickets</h1>
+                <p class="text-on-surface-variant mt-1">Manage customer support requests</p>
             </div>
-            <a href="{{ route('admin.fund-requests.index') }}"
-               class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px]">payments</span> Fund Requests
-            </a>
         </div>
 
         @if(session('success'))
@@ -27,124 +23,201 @@
         </div>
         @endif
 
-        {{-- Add Account --}}
-        <div class="glass-card p-6 rounded-xl mb-6">
-            <h2 class="text-lg font-semibold text-on-surface mb-4">Add New Account</h2>
-            <form action="{{ route('admin.payment-accounts.store') }}" method="POST">
-                @csrf
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-on-surface mb-1">Display Name</label>
-                        <input type="text" name="name" value="{{ old('name') }}" class="glass-input w-full"
-                               placeholder="e.g. EasyPaisa – Ali Khan" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-on-surface mb-1">Type</label>
-                        <select name="type" class="glass-input w-full" required>
-                            <option value="">Select type</option>
-                            <option value="easypaisa" {{ old('type')=='easypaisa'?'selected':'' }}>EasyPaisa</option>
-                            <option value="jazzcash"  {{ old('type')=='jazzcash'?'selected':'' }}>JazzCash</option>
-                            <option value="bank"      {{ old('type')=='bank'?'selected':'' }}>Bank Transfer</option>
-                            <option value="crypto"    {{ old('type')=='crypto'?'selected':'' }}>Crypto</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-on-surface mb-1">Account Number / IBAN / Address</label>
-                        <input type="text" name="account_number" value="{{ old('account_number') }}" class="glass-input w-full"
-                               placeholder="03001234567 or IBAN" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-on-surface mb-1">Account Title</label>
-                        <input type="text" name="account_title" value="{{ old('account_title') }}" class="glass-input w-full"
-                               placeholder="Account holder name">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-on-surface mb-1">
-                            Bank Name <span class="text-outline text-xs">(for bank transfers)</span>
-                        </label>
-                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="glass-input w-full"
-                               placeholder="e.g. HBL, Meezan Bank">
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <button type="submit" class="btn-primary px-6 py-2 rounded-lg font-semibold">Add Account</button>
-                </div>
+        {{-- Filter --}}
+        <div class="glass-card p-4 rounded-xl mb-6">
+            <form action="{{ route('admin.tickets.index') }}" method="GET" class="flex gap-3">
+                <select name="status" class="glass-input">
+                    <option value="">All statuses</option>
+                    <option value="open"    {{ request('status')=='open'   ?'selected':'' }}>Open</option>
+                    <option value="pending" {{ request('status')=='pending'?'selected':'' }}>Pending</option>
+                    <option value="closed"  {{ request('status')=='closed' ?'selected':'' }}>Closed</option>
+                </select>
+                <button type="submit" class="btn-primary px-4 py-2 rounded-lg text-sm">Filter</button>
             </form>
         </div>
 
-        {{-- Accounts Table --}}
+        {{-- Tickets Table --}}
         <div class="glass-card rounded-xl overflow-hidden">
-            <table class="w-full border-collapse">
-                <thead>
-                    <tr class="border-b border-outline-variant/30 bg-surface-container">
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Name</th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Type</th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Number / IBAN</th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Requests</th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Status</th>
-                        <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($accounts as $account)
-                    <tr class="border-b border-outline-variant/30 hover:bg-surface-container/50 transition-colors">
-                        <td class="px-6 py-4">
-                            <p class="text-on-surface font-semibold">{{ $account->name }}</p>
-                            @if($account->account_title)
-                                <p class="text-on-surface-variant text-xs">{{ $account->account_title }}</p>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary">
-                                {{ $account->typeLabel() }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <p class="text-on-surface font-mono text-sm">{{ $account->account_number }}</p>
-                            @if($account->bank_name)
-                                <p class="text-on-surface-variant text-xs">{{ $account->bank_name }}</p>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4">
-                            <p class="text-on-surface font-semibold">{{ $account->fund_requests_count }}</p>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="px-2 py-1 rounded-full text-xs font-semibold
-                                {{ $account->is_active ? 'bg-tertiary/20 text-tertiary' : 'bg-error/20 text-error' }}">
-                                {{ $account->is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex justify-end gap-3">
-                                <form action="{{ route('admin.payment-accounts.toggle', $account) }}" method="POST" class="inline">
-                                    @csrf
-                                    <button type="submit"
-                                            class="text-sm font-semibold transition-opacity hover:opacity-70
-                                                   {{ $account->is_active ? 'text-error' : 'text-tertiary' }}">
-                                        {{ $account->is_active ? 'Disable' : 'Enable' }}
-                                    </button>
-                                </form>
-                                <form action="{{ route('admin.payment-accounts.destroy', $account) }}" method="POST" class="inline"
-                                      onsubmit="return confirm('Delete this account? This cannot be undone.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-sm font-semibold text-error hover:opacity-70 transition-opacity">
-                                        Delete
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
-                            <p class="text-on-surface-variant text-sm">No payment accounts yet. Add one above.</p>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="border-b border-outline-variant/30 bg-surface-container">
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">#</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">User</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Subject</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Created</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($tickets as $ticket)
+                        <tr class="border-b border-outline-variant/30 hover:bg-surface-container/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <p class="text-on-surface font-semibold">#{{ $ticket->id }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-on-surface font-medium">{{ $ticket->user->name }}</p>
+                                <p class="text-on-surface-variant text-xs">{{ $ticket->user->email }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-on-surface truncate max-w-xs">{{ $ticket->subject }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                    {{ $ticket->status === 'open'    ? 'bg-primary/20 text-primary'        :
+                                      ($ticket->status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                       'bg-outline/20 text-outline') }}">
+                                    {{ ucfirst($ticket->status) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-on-surface-variant text-sm">{{ $ticket->created_at->format('d M Y H:i') }}</p>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="openTicketModal(
+                                            {{ $ticket->id }},
+                                            @json($ticket->subject),
+                                            @json($ticket->message),
+                                            @json($ticket->status),
+                                            @json($ticket->messages->map(fn($m) => [
+                                                'msg'      => $m->message,
+                                                'is_admin' => $m->is_admin,
+                                                'name'     => $m->user->name ?? 'Admin',
+                                                'time'     => $m->created_at->format('d M H:i'),
+                                            ]))
+                                        )"
+                                        class="text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
+                                    View & Reply
+                                </button>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center">
+                                <p class="text-on-surface-variant text-sm">No tickets found.</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-6">{{ $tickets->links() }}</div>
+    </div>
+</div>
+
+{{-- Ticket Detail Modal --}}
+<div id="ticketModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="glass-card rounded-xl w-full max-w-2xl flex flex-col" style="max-height:90vh">
+
+        {{-- Header --}}
+        <div class="flex items-start justify-between p-6 border-b border-outline-variant/30 flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-on-surface" id="modal-subject"></h3>
+                <p class="text-on-surface-variant text-xs mt-1" id="modal-meta"></p>
+            </div>
+            <button onclick="closeTicketModal()" class="text-on-surface-variant hover:text-on-surface ml-4 flex-shrink-0">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        {{-- Messages --}}
+        <div id="modal-messages" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+
+        {{-- Reply + Close --}}
+        <div class="p-6 border-t border-outline-variant/30 flex-shrink-0" id="modal-actions">
+            <form id="replyForm" method="POST">
+                @csrf
+                <textarea name="message" id="reply-textarea" rows="3" class="glass-input w-full mb-3"
+                          placeholder="Type your reply..." required minlength="2"></textarea>
+                <div class="flex gap-3">
+                    <button type="submit" class="btn-primary px-5 py-2 rounded-lg font-semibold flex-1">
+                        Send Reply
+                    </button>
+                    <button type="button" id="close-ticket-btn"
+                            class="px-5 py-2 rounded-lg font-semibold bg-outline/20 text-on-surface-variant hover:bg-error/20 hover:text-error transition-colors">
+                        Close Ticket
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+{{-- Hidden close-ticket form --}}
+<form id="closeTicketForm" method="POST" class="hidden">@csrf</form>
+
+<script>
+function openTicketModal(id, subject, message, status, messages) {
+    document.getElementById('modal-subject').textContent = subject + ' #' + id;
+    document.getElementById('modal-meta').textContent    = 'Status: ' + status.charAt(0).toUpperCase() + status.slice(1);
+    document.getElementById('replyForm').action          = '/admin/tickets/' + id + '/reply';
+
+    const container = document.getElementById('modal-messages');
+    container.innerHTML = '';
+
+    // Original message
+    const orig = document.createElement('div');
+    orig.className = 'flex gap-3 flex-row-reverse';
+    orig.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0">U</div>
+        <div class="bg-surface-container rounded-xl p-3 max-w-md ml-auto">
+            <p class="text-on-surface text-sm">${escHtml(message)}</p>
+            <p class="text-on-surface-variant text-xs mt-1">Original message</p>
+        </div>`;
+    container.appendChild(orig);
+
+    messages.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'flex gap-3' + (m.is_admin ? '' : ' flex-row-reverse');
+        div.innerHTML = `
+            <div class="w-8 h-8 rounded-full ${m.is_admin
+                ? 'bg-secondary/20 border border-secondary/30'
+                : 'bg-gradient-primary'} flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                ${m.is_admin ? 'A' : 'U'}
+            </div>
+            <div class="${m.is_admin
+                ? 'bg-primary/10 border border-primary/20'
+                : 'bg-surface-container'} rounded-xl p-3 max-w-md ${m.is_admin ? '' : 'ml-auto'}">
+                <p class="text-on-surface text-sm">${escHtml(m.msg)}</p>
+                <p class="text-on-surface-variant text-xs mt-1">${escHtml(m.name)} · ${escHtml(m.time)}</p>
+            </div>`;
+        container.appendChild(div);
+    });
+
+    container.scrollTop = container.scrollHeight;
+
+    // Hide reply area if already closed
+    document.getElementById('modal-actions').style.display = status === 'closed' ? 'none' : 'block';
+
+    // Wire close-ticket button
+    document.getElementById('close-ticket-btn').onclick = function () {
+        if (!confirm('Close this ticket?')) return;
+        const f = document.getElementById('closeTicketForm');
+        f.action = '/admin/tickets/' + id + '/close';
+        f.submit();
+    };
+
+    document.getElementById('ticketModal').classList.remove('hidden');
+    if (status !== 'closed') document.getElementById('reply-textarea').focus();
+}
+
+function closeTicketModal() {
+    document.getElementById('ticketModal').classList.add('hidden');
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+document.getElementById('ticketModal').addEventListener('click', e => {
+    if (e.target.id === 'ticketModal') closeTicketModal();
+});
+</script>
 @endsection
