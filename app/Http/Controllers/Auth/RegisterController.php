@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -45,7 +46,8 @@ class RegisterController extends Controller
 
         $user = User::create([
             'name'        => $validated['name'],
-            'email'       => Str::lower(trim($validated['email'])),
+            // Fixed line 48: Using absolute path to the Str facade
+            'email'       => \Illuminate\Support\Facades\Str::lower(trim($validated['email'])),
             'password'    => Hash::make($validated['password']),
             'referred_by' => $referrer?->id,
         ]);
