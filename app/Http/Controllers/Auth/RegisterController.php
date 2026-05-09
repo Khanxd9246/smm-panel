@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+// Even with this use statement, production is failing, so we will use the full path below
 use Illuminate\Support\Facades\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -46,7 +47,7 @@ class RegisterController extends Controller
 
         $user = User::create([
             'name'        => $validated['name'],
-            // FIX: Absolute path used here to bypass the "Class not found" error
+            // FIX: Using the absolute path with a leading backslash to force resolution
             'email'       => \Illuminate\Support\Facades\Str::lower(trim($validated['email'])),
             'password'    => Hash::make($validated['password']),
             'referred_by' => $referrer?->id,
