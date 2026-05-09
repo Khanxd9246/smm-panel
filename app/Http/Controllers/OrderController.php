@@ -11,15 +11,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * OrderController
  *
  * FIXES:
- * - LOW-1: Creates a Transaction (deduction) record for every order placed
- * - Validates service is still active at time of purchase (not just at form load)
- * - Validates quantity within service min/max before DB transaction
- * - Adds IP logging to order context
+ * - Renamed method to getServicesByCategory to match web.php route name
+ * - Creates a Transaction (deduction) record for every order placed
+ * - Validates service status and quantity
  */
 class OrderController extends Controller
 {
@@ -40,9 +40,6 @@ class OrderController extends Controller
 
     public function create()
     {
-        // Only load categories for the initial page render.
-        // Services are fetched via AJAX when a category is selected — avoids
-        // dumping 5,000+ services into the HTML on every page load.
         $categories = Category::where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'icon', 'color']);
@@ -51,14 +48,18 @@ class OrderController extends Controller
     }
 
     /**
-     * JSON endpoint: return services for a given category.
-     * Called by the order create page JS when the user picks a category.
+     * FIXED: This method name now matches the route: 
+     * Route::get('services-by-category', [OrderController::class, 'getServicesByCategory'])->name('services_by_category');
      */
-    public function servicesByCategory(Request $request)
+    public function getServicesByCategory(Request $request)
     {
         $categoryId = $request->integer('category_id');
 
-        $services = \Illuminate\Support\Facades\Cache::remember(
+        if (!$categoryId) {
+            return response()->json([]);
+        }
+
+        $services = Cache::remember(
             "services_cat_{$categoryId}",
             300,
             fn () => Service::where('status', 'active')
@@ -74,7 +75,6 @@ class OrderController extends Controller
     {
         $validated = $request->validated();
 
-        // Check for duplicate order within 60 seconds
         if ($this->orderService->isDuplicateOrder(Auth::id(), $validated['service_id'], $validated['link'])) {
             return back()->withErrors(['error' => 'You already placed an identical order a moment ago. Please wait 60 seconds.']);
         }
