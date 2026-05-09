@@ -86,8 +86,25 @@ class AdminController extends Controller
             ApiProvider::withCount('services')->get()
         );
 
+        $total_orders           = (int)   ($stats->total_orders            ?? 0);
+        $pending_orders         = (int)   ($stats->pending_orders          ?? 0);
+        $completed_orders       = (int)   ($stats->completed_orders        ?? 0);
+        $active_users           = (int)   ($stats->active_users            ?? 0);
+        $total_revenue          = (float) ($stats->total_revenue           ?? 0);
+        $pending_transactions   = (int)   ($stats->pending_transactions    ?? 0);
+        $open_tickets           = (int)   ($stats->open_tickets            ?? 0);
+
         return view('admin.dashboard', compact(
-            'stats', 'recentOrders', 'recentUsers', 'providers'
+            'total_orders',
+            'pending_orders',
+            'completed_orders',
+            'active_users',
+            'total_revenue',
+            'pending_transactions',
+            'open_tickets',
+            'recentOrders',
+            'recentUsers',
+            'providers'
         ));
     }
 
