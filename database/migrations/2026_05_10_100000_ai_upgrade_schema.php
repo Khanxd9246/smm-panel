@@ -9,15 +9,6 @@ use Illuminate\Support\Facades\DB;
  * AI Upgrade Migration
  *
  * Adds all new columns required by the AI-powered SMM upgrade.
- * Safe to run on existing databases — all columns use ->nullable() or have defaults.
- *
- * Adds:
- *  - services: quality scoring, delivery time, AI fields, supplier rate, pricing
- *  - api_providers: health monitoring fields
- *  - categories: profit_margin
- *  - balance_transactions: new table for wallet audit trail
- *  - settings: key/value config store (if not exists)
- *  - Indexes for performance
  */
 return new class extends Migration
 {
@@ -25,20 +16,16 @@ return new class extends Migration
     {
         // ── Services table ────────────────────────────────────────────────
         Schema::table('services', function (Blueprint $table) {
-            // Pricing
             if (!Schema::hasColumn('services', 'supplier_rate')) {
-                $table->decimal('supplier_rate', 14, 6)->nullable()->after('rate')
-                    ->comment('Raw supplier cost before margin');
+                $table->decimal('supplier_rate', 14, 6)->nullable()->after('rate');
             }
             if (!Schema::hasColumn('services', 'custom_margin')) {
-                $table->decimal('custom_margin', 8, 4)->nullable()->after('supplier_rate')
-                    ->comment('Override margin % for this service');
+                $table->decimal('custom_margin', 8, 4)->nullable()->after('supplier_rate');
             }
 
             // Quality scoring
             if (!Schema::hasColumn('services', 'quality_score')) {
-                $table->unsignedTinyInteger('quality_score')->default(5)->after('max')
-                    ->comment('1-10 quality score from ServiceQualityService');
+                $table->unsignedTinyInteger('quality_score')->default(5)->after('max');
             }
             if (!Schema::hasColumn('services', 'quality_status')) {
                 $table->enum('quality_status', ['excellent', 'good', 'fair', 'poor'])->default('good')->after('quality_score');
@@ -47,7 +34,7 @@ return new class extends Migration
                 $table->json('quality_issues')->nullable()->after('quality_status');
             }
 
-            // Real statistics
+            // Statistics
             if (!Schema::hasColumn('services', 'success_rate')) {
                 $table->decimal('success_rate', 5, 2)->default(0)->after('quality_issues');
             }
@@ -55,18 +42,15 @@ return new class extends Migration
                 $table->decimal('cancel_rate', 5, 2)->default(0)->after('success_rate');
             }
             if (!Schema::hasColumn('services', 'avg_start_time')) {
-                $table->unsignedInteger('avg_start_time')->default(0)->after('cancel_rate')
-                    ->comment('Average minutes until order starts');
+                $table->unsignedInteger('avg_start_time')->default(0)->after('cancel_rate');
             }
 
-            // Delivery time display
+            // Delivery time
             if (!Schema::hasColumn('services', 'estimated_start')) {
-                $table->string('estimated_start', 50)->nullable()->after('avg_start_time')
-                    ->comment('Human readable e.g. "0-15 mins"');
+                $table->string('estimated_start', 50)->nullable()->after('avg_start_time');
             }
             if (!Schema::hasColumn('services', 'estimated_completion')) {
-                $table->string('estimated_completion', 50)->nullable()->after('estimated_start')
-                    ->comment('Human readable e.g. "1-3 hours"');
+                $table->string('estimated_completion', 50)->nullable()->after('estimated_start');
             }
             if (!Schema::hasColumn('services', 'delivery_badge')) {
                 $table->enum('delivery_badge', ['instant', 'fast', 'standard', 'slow'])->default('standard')->after('estimated_completion');
@@ -83,7 +67,7 @@ return new class extends Migration
                 $table->boolean('is_hidden')->default(false)->after('is_premium');
             }
 
-            // AI generated content
+            // AI content
             if (!Schema::hasColumn('services', 'ai_tags')) {
                 $table->json('ai_tags')->nullable()->after('is_hidden');
             }
@@ -115,8 +99,7 @@ return new class extends Migration
         // ── API Providers table ───────────────────────────────────────────
         Schema::table('api_providers', function (Blueprint $table) {
             if (!Schema::hasColumn('api_providers', 'profit_margin')) {
-                $table->decimal('profit_margin', 8, 4)->nullable()
-                    ->comment('Provider-level default profit margin %');
+                $table->decimal('profit_margin', 8, 4)->nullable();
             }
             if (!Schema::hasColumn('api_providers', 'health_score')) {
                 $table->unsignedTinyInteger('health_score')->default(5);
@@ -132,30 +115,26 @@ return new class extends Migration
             }
         });
 
-        // ── Categories profit margin ──────────────────────────────────────
+        // ── Categories ────────────────────────────────────────────────────
         Schema::table('categories', function (Blueprint $table) {
             if (!Schema::hasColumn('categories', 'profit_margin')) {
-                $table->decimal('profit_margin', 8, 4)->nullable()
-                    ->comment('Category-level default profit margin %');
+                $table->decimal('profit_margin', 8, 4)->nullable();
             }
         });
 
-        // ── Balance Transactions (wallet audit trail) ─────────────────────
+        // ── Balance Transactions ──────────────────────────────────────────
         if (!Schema::hasTable('balance_transactions')) {
             Schema::create('balance_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('user_id');
-                $table->unsignedBigInteger('admin_id')->nullable()
-                    ->comment('Admin who performed the action (null for system)');
-                $table->enum('type', ['credit', 'debit', 'refund', 'freeze', 'system'])
-                    ->index();
+                $table->unsignedBigInteger('admin_id')->nullable();
+                $table->enum('type', ['credit', 'debit', 'refund', 'freeze', 'system'])->index();
                 $table->decimal('amount', 14, 6);
                 $table->decimal('balance_before', 14, 6);
                 $table->decimal('balance_after', 14, 6);
                 $table->string('reason', 500);
                 $table->string('ip_address', 45)->nullable();
-                $table->unsignedBigInteger('reference_id')->nullable()
-                    ->comment('Related order/transaction ID');
+                $table->unsignedBigInteger('reference_id')->nullable();
                 $table->text('notes')->nullable();
                 $table->timestamps();
 
@@ -166,18 +145,20 @@ return new class extends Migration
             });
         }
 
-        // ── Settings (key/value store) ────────────────────────────────────
+        // ── Settings (Table Creation) ─────────────────────────────────────
         if (!Schema::hasTable('settings')) {
             Schema::create('settings', function (Blueprint $table) {
                 $table->id();
                 $table->string('key', 100)->unique();
                 $table->text('value')->nullable();
-                $table->string('type', 20)->default('string')
-                    ->comment('string|integer|float|boolean|json');
+                $table->string('type', 20)->default('string');
                 $table->string('group', 50)->default('general');
                 $table->timestamps();
             });
         }
+
+        // ── CRITICAL FIX: Refresh schema state before data insertion ──
+        Schema::getFacadeRoot()->refreshDatabaseState();
 
         // ── Seed default settings ─────────────────────────────────────────
         DB::table('settings')->upsert([
@@ -186,16 +167,14 @@ return new class extends Migration
             ['key' => 'auto_hide_low_quality', 'value' => '0', 'type' => 'boolean', 'group' => 'quality', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'low_quality_threshold', 'value' => '3', 'type' => 'integer', 'group' => 'quality', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'auto_disable_unstable_suppliers', 'value' => '1', 'type' => 'boolean', 'group' => 'suppliers', 'created_at' => now(), 'updated_at' => now()],
-        ], ['key'], ['value', 'updated_at']);
+        ], ['key'], ['value', 'group', 'updated_at']);
     }
 
     public function down(): void
     {
-        // Drop new tables
         Schema::dropIfExists('balance_transactions');
         Schema::dropIfExists('settings');
 
-        // Remove new columns from services
         Schema::table('services', function (Blueprint $table) {
             $newCols = [
                 'supplier_rate', 'custom_margin', 'quality_score', 'quality_status',
@@ -224,9 +203,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Safely add an index without failing if it already exists.
-     */
     private function safeAddIndex(string $table, array|string $columns, string $name): void
     {
         try {
@@ -234,7 +210,7 @@ return new class extends Migration
                 $t->index($columns, $name);
             });
         } catch (\Exception) {
-            // Index already exists — skip
+            // Already exists
         }
     }
 };
