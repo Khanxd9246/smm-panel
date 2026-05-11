@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
  * AI Upgrade Migration
  *
  * Adds all new columns required by the AI-powered SMM upgrade.
+ * Safe to run on existing databases — all columns use ->nullable() or have defaults.
  */
 return new class extends Migration
 {
@@ -16,6 +17,7 @@ return new class extends Migration
     {
         // ── Services table ────────────────────────────────────────────────
         Schema::table('services', function (Blueprint $table) {
+            // Pricing
             if (!Schema::hasColumn('services', 'supplier_rate')) {
                 $table->decimal('supplier_rate', 14, 6)->nullable()->after('rate');
             }
@@ -67,7 +69,7 @@ return new class extends Migration
                 $table->boolean('is_hidden')->default(false)->after('is_premium');
             }
 
-            // AI content
+            // AI generated content
             if (!Schema::hasColumn('services', 'ai_tags')) {
                 $table->json('ai_tags')->nullable()->after('is_hidden');
             }
@@ -122,7 +124,7 @@ return new class extends Migration
             }
         });
 
-        // ── Balance Transactions ──────────────────────────────────────────
+        // ── Balance Transactions (wallet audit trail) ─────────────────────
         if (!Schema::hasTable('balance_transactions')) {
             Schema::create('balance_transactions', function (Blueprint $table) {
                 $table->id();
@@ -157,17 +159,24 @@ return new class extends Migration
             });
         }
 
-        // ── CRITICAL FIX: Refresh schema state before data insertion ──
-        Schema::getFacadeRoot()->refreshDatabaseState();
+        // ── FIX: Force Laravel to forget the previous schema state ───────
+        DB::connection()->forgetRecordCursor();
 
-        // ── Seed default settings ─────────────────────────────────────────
-        DB::table('settings')->upsert([
-            ['key' => 'global_profit_margin', 'value' => '40', 'type' => 'float', 'group' => 'pricing', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'ai_enabled', 'value' => '1', 'type' => 'boolean', 'group' => 'ai', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'auto_hide_low_quality', 'value' => '0', 'type' => 'boolean', 'group' => 'quality', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'low_quality_threshold', 'value' => '3', 'type' => 'integer', 'group' => 'quality', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'auto_disable_unstable_suppliers', 'value' => '1', 'type' => 'boolean', 'group' => 'suppliers', 'created_at' => now(), 'updated_at' => now()],
-        ], ['key'], ['value', 'group', 'updated_at']);
+        // ── Seed default settings (using updateOrInsert for reliability) ──
+        $defaultSettings = [
+            ['key' => 'global_profit_margin', 'value' => '40', 'type' => 'float', 'group' => 'pricing'],
+            ['key' => 'ai_enabled', 'value' => '1', 'type' => 'boolean', 'group' => 'ai'],
+            ['key' => 'auto_hide_low_quality', 'value' => '0', 'type' => 'boolean', 'group' => 'quality'],
+            ['key' => 'low_quality_threshold', 'value' => '3', 'type' => 'integer', 'group' => 'quality'],
+            ['key' => 'auto_disable_unstable_suppliers', 'value' => '1', 'type' => 'boolean', 'group' => 'suppliers'],
+        ];
+
+        foreach ($defaultSettings as $setting) {
+            DB::table('settings')->updateOrInsert(
+                ['key' => $setting['key']],
+                array_merge($setting, ['updated_at' => now(), 'created_at' => now()])
+            );
+        }
     }
 
     public function down(): void
@@ -191,7 +200,8 @@ return new class extends Migration
         });
 
         Schema::table('api_providers', function (Blueprint $table) {
-            foreach (['profit_margin', 'health_score', 'health_status', 'last_checked_at', 'api_response_ms'] as $col) {
+            $apiCols = ['profit_margin', 'health_score', 'health_status', 'last_checked_at', 'api_response_ms'];
+            foreach ($apiCols as $col) {
                 if (Schema::hasColumn('api_providers', $col)) $table->dropColumn($col);
             }
         });
@@ -209,8 +219,8 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $t) use ($columns, $name) {
                 $t->index($columns, $name);
             });
-        } catch (\Exception) {
-            // Already exists
+        } catch (\Exception $e) {
+            // Index likely already exists
         }
     }
 };
