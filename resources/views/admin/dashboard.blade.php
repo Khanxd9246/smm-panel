@@ -10,7 +10,7 @@
     <div class="relative z-10">
         <h2 class="font-h2 text-white mb-1" style="font-size:22px">Admin Command Center</h2>
         <p class="text-on-surface-variant text-sm mb-6">Live platform overview — {{ now()->format('D, d M Y H:i') }}</p>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div>
                 <p class="text-outline text-xs font-label-caps uppercase tracking-widest mb-1">Total Revenue</p>
                 <p class="font-h1 text-white tracking-tight" style="font-size:28px">${{ number_format($total_revenue, 2) }}</p>
@@ -27,9 +27,66 @@
                 <p class="text-outline text-xs font-label-caps uppercase tracking-widest mb-1">Pending Orders</p>
                 <p class="font-h1 tracking-tight {{ $pending_orders > 0 ? 'text-[#fcd34d]' : 'text-white' }}" style="font-size:28px">{{ $pending_orders }}</p>
             </div>
+            <div>
+                <p class="text-outline text-xs font-label-caps uppercase tracking-widest mb-1">Pending Deposits</p>
+                <p class="font-h1 tracking-tight {{ $pending_deposits_count > 0 ? 'text-error' : 'text-white' }}" style="font-size:28px">{{ $pending_deposits_count }}</p>
+            </div>
         </div>
     </div>
 </div>
+
+{{-- ⚠️ Pending Deposits Alert — shown whenever users are waiting for approval --}}
+@if($pending_deposits->count() > 0)
+<div class="glass-card rounded-xl p-md mb-gutter border border-error/30 fade-up" style="background:rgba(255,180,171,0.04)">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="font-h3 text-error flex items-center gap-2" style="font-size:16px">
+            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1">notifications_active</span>
+            {{ $pending_deposits->count() }} Pending Deposit{{ $pending_deposits->count() > 1 ? 's' : '' }} Awaiting Approval
+        </h3>
+        <a href="{{ route('admin.transactions.index', ['status' => 'pending', 'type' => 'deposit']) }}"
+           class="text-primary text-xs hover:underline flex items-center gap-1">
+            View all <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </a>
+    </div>
+    <div class="space-y-3">
+        @foreach($pending_deposits as $deposit)
+        <div class="flex items-center justify-between p-3 bg-surface-container rounded-xl border border-outline-variant/20">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-full bg-error/10 border border-error/30 flex items-center justify-center text-error font-bold text-xs flex-shrink-0">
+                    {{ strtoupper(substr($deposit->user->name ?? 'U', 0, 1)) }}
+                </div>
+                <div class="min-w-0">
+                    <p class="text-on-surface text-sm font-medium truncate">{{ $deposit->user->name ?? 'Unknown' }}</p>
+                    <p class="text-outline text-xs truncate">Ref: {{ $deposit->reference }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 flex-shrink-0 ml-2">
+                <div class="text-right">
+                    <p class="text-primary font-bold text-sm">${{ number_format($deposit->amount, 2) }}</p>
+                    @if($deposit->screenshot_path)
+                    <a href="{{ Storage::url($deposit->screenshot_path) }}" target="_blank"
+                       class="text-xs text-tertiary flex items-center gap-1 justify-end hover:underline">
+                        <span class="material-symbols-outlined text-[12px]">image</span> Screenshot
+                    </a>
+                    @else
+                    <p class="text-xs text-outline">No screenshot</p>
+                    @endif
+                </div>
+                {{-- Quick approve button --}}
+                <form method="POST" action="{{ route('admin.transactions.approve', $deposit) }}"
+                      onsubmit="return confirm('Credit ${{ number_format($deposit->amount, 2) }} to {{ addslashes($deposit->user->name ?? '') }}?')">
+                    @csrf
+                    <button type="submit"
+                            class="bg-tertiary/10 border border-tertiary/30 text-tertiary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-tertiary/20 transition-all whitespace-nowrap">
+                        ✓ Approve
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
 
 {{-- Main grid --}}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mb-gutter">
@@ -49,11 +106,12 @@
                     </div>
                     <div class="min-w-0">
                         <p class="text-on-surface text-sm font-medium truncate">{{ $p->name }}</p>
-                        <p class="text-outline text-xs truncate">{{ $p->url }}</p>
+                        <p class="text-outline text-xs truncate">{{ $p->services_count }} services</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span class="w-2 h-2 rounded-full {{ $p->status === 'active' ? 'bg-tertiary' : 'bg-error' }}" style="box-shadow:0 0 5px {{ $p->status === 'active' ? '#4edea3' : '#ffb4ab' }}"></span>
+                    <span class="w-2 h-2 rounded-full {{ $p->status === 'active' ? 'bg-tertiary' : 'bg-error' }}"
+                          style="box-shadow:0 0 5px {{ $p->status === 'active' ? '#4edea3' : '#ffb4ab' }}"></span>
                     <form method="POST" action="{{ route('admin.providers.sync', $p->id) }}">
                         @csrf
                         <button type="submit" class="text-outline hover:text-primary transition-colors text-xs font-semibold" title="Sync services">
@@ -70,17 +128,14 @@
             @endforelse
         </div>
 
-        {{-- WHERE TO PUT YOUR API KEYS --}}
         <div class="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
             <p class="text-primary text-xs font-semibold mb-1 flex items-center gap-1">
                 <span class="material-symbols-outlined text-[14px]">key</span> API Key Setup
             </p>
             <p class="text-outline text-xs leading-relaxed">
-                Add your Peakerr / SMMWorld API keys here. Go to
-                <a href="{{ route('admin.providers.create') }}" class="text-primary hover:underline font-semibold">Add Provider</a>
-                and enter:<br>
-                • <strong class="text-on-surface">URL:</strong> https://peakerr.com/api/v2<br>
-                • <strong class="text-on-surface">API Key:</strong> from your provider dashboard<br>
+                Add your Peakerr / SMMWorld API keys via
+                <a href="{{ route('admin.providers.create') }}" class="text-primary hover:underline font-semibold">Add Provider</a>.<br>
+                URL: https://peakerr.com/api/v2<br>
                 Then click Sync to import all services.
             </p>
         </div>
@@ -109,10 +164,10 @@
                     @foreach($recent_orders as $order)
                     @php $s = strtolower($order->status ?? 'pending');
                     $sc = match(true){
-                        in_array($s,['completed'])      => 'bg-tertiary/10 text-tertiary border-tertiary/30',
-                        in_array($s,['in progress','processing']) => 'bg-primary/10 text-primary border-primary/30 animate-pulse',
-                        in_array($s,['cancelled'])      => 'bg-error/10 text-error border-error/30',
-                        default                         => 'bg-surface-container-highest text-outline border-outline/30',
+                        in_array($s,['completed'])               => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+                        in_array($s,['in progress','processing'])=> 'bg-primary/10 text-primary border-primary/30 animate-pulse',
+                        in_array($s,['cancelled'])               => 'bg-error/10 text-error border-error/30',
+                        default                                  => 'bg-surface-container-highest text-outline border-outline/30',
                     }; @endphp
                     <tr class="border-b border-surface-container-high hover:bg-white/5 transition-colors">
                         <td class="py-3 font-mono text-outline text-xs">#{{ $order->id }}</td>
@@ -132,7 +187,7 @@
     </div>
 </div>
 
-{{-- Users + quick actions --}}
+{{-- Users + Quick Actions --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter fade-up">
 
     {{-- Recent users --}}
@@ -160,30 +215,39 @@
         </div>
     </div>
 
-    {{-- Admin quick actions --}}
+    {{-- Quick Actions --}}
     <div class="glass-card rounded-xl p-md">
         <h3 class="font-h3 text-on-surface mb-4" style="font-size:16px">Quick Actions</h3>
         <div class="grid grid-cols-2 gap-3">
-            @foreach([
-                ['Sync Services','sync',route('admin.sync.all'),'text-primary','POST'],
-                ['Manage Services','list_alt',route('admin.services.index'),'text-tertiary','GET'],
-                ['Manage Users','people',route('admin.users.index'),'text-secondary','GET'],
-                ['Transactions','receipt_long',route('admin.transactions.index'),'text-[#fcd34d]','GET'],
-                ['Open Tickets','confirmation_number',route('admin.tickets.index'),'text-error','GET'],
-                ['Settings','settings',route('admin.settings'),'text-outline','GET'],
-            ] as [$label,$icon,$url,$color,$method])
+            @php
+            $actions = [
+                ['Pending Deposits', 'payments',            route('admin.transactions.index', ['status'=>'pending','type'=>'deposit']), 'text-error',    'GET',  $pending_deposits_count],
+                ['Sync Services',    'sync',                route('admin.sync.all'),                                                   'text-primary',  'POST', 0],
+                ['Manage Services',  'list_alt',            route('admin.services.index'),                                             'text-tertiary', 'GET',  0],
+                ['Manage Users',     'people',              route('admin.users.index'),                                                'text-secondary','GET',  0],
+                ['Open Tickets',     'confirmation_number', route('admin.tickets.index'),                                              'text-[#fcd34d]','GET',  $open_tickets],
+                ['AI Services',      'smart_toy',           '/admin/ai/services',                                                     'text-purple-400','GET', 0],
+                ['AI Pricing',       'price_change',        '/admin/ai/pricing',                                                      'text-tertiary', 'GET',  0],
+                ['Supplier Health',  'monitor_heart',       '/admin/ai/suppliers/health',                                             'text-primary',  'GET',  0],
+                ['Settings',         'settings',            route('admin.settings'),                                                   'text-outline',  'GET',  0],
+            ];
+            @endphp
+            @foreach($actions as [$label,$icon,$url,$color,$method,$badge])
             @if($method === 'POST')
             <form method="POST" action="{{ $url }}">
                 @csrf
-                <button type="submit" class="w-full flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-outline-variant/20 hover:border-outline-variant/50 hover:bg-white/5 transition-all text-sm">
+                <button type="submit" class="w-full flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-outline-variant/20 hover:border-outline-variant/50 hover:bg-white/5 transition-all text-sm relative">
                     <span class="material-symbols-outlined {{ $color }} text-[18px]">{{ $icon }}</span>
                     <span class="text-on-surface-variant text-xs font-medium">{{ $label }}</span>
                 </button>
             </form>
             @else
-            <a href="{{ $url }}" class="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-outline-variant/20 hover:border-outline-variant/50 hover:bg-white/5 transition-all text-sm">
+            <a href="{{ $url }}" class="flex items-center gap-2 p-3 rounded-xl bg-surface-container border border-outline-variant/20 hover:border-outline-variant/50 hover:bg-white/5 transition-all text-sm relative">
                 <span class="material-symbols-outlined {{ $color }} text-[18px]">{{ $icon }}</span>
                 <span class="text-on-surface-variant text-xs font-medium">{{ $label }}</span>
+                @if($badge > 0)
+                <span class="absolute top-2 right-2 w-4 h-4 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center">{{ $badge > 9 ? '9+' : $badge }}</span>
+                @endif
             </a>
             @endif
             @endforeach
