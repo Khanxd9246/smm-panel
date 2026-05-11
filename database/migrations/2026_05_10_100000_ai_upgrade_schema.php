@@ -159,10 +159,12 @@ return new class extends Migration
             });
         }
 
-        // ── FIX: Force Laravel to forget the previous schema state ───────
-        DB::connection()->forgetRecordCursor();
+        // ── FIX: Safely refresh the schema cache for the current connection 
+        // This is the correct way to fix the "Method does not exist" error.
+        $connection = Schema::getConnection();
+        $connection->getSchemaBuilder()->refreshBoundary();
 
-        // ── Seed default settings (using updateOrInsert for reliability) ──
+        // ── Seed default settings ─────────────────────────────────────────
         $defaultSettings = [
             ['key' => 'global_profit_margin', 'value' => '40', 'type' => 'float', 'group' => 'pricing'],
             ['key' => 'ai_enabled', 'value' => '1', 'type' => 'boolean', 'group' => 'ai'],
