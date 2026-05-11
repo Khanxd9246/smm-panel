@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -74,8 +75,15 @@ class Service extends Model
 
     public function scopeActive(Builder $query): Builder
     {
-        // Extended: also excludes hidden services
-        return $query->where('status', 'active')->where('is_hidden', false);
+        $query->where('status', 'active');
+
+        // Only filter is_hidden if the column exists (guards against running
+        // before the ai_upgrade_schema migration has been applied).
+        if (Schema::hasColumn('services', 'is_hidden')) {
+            $query->where('is_hidden', false);
+        }
+
+        return $query;
     }
 
     public function scopeForPlatform(Builder $query, ?string $platform): Builder
