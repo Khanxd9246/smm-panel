@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePaymentRequest;
 use App\Models\FundAccount;
-use App\Models\FundRequest;
-use App\Models\PaymentAccount;
 use App\Models\PaymentLog;
 use App\Models\Setting;
 use App\Models\Transaction;
@@ -25,16 +23,17 @@ class FundsController extends Controller
         $this->middleware('auth');
     }
 
-    // ── Add Funds page ────────────────────────────────────────────────────
+    // ── Public page ───────────────────────────────────────────────────────
 
     public function index()
     {
         $accounts     = FundAccount::active()->orderBy('name')->get();
         $whatsappLink = Setting::get('whatsapp_link');
+
         return view('funds.index', compact('accounts', 'whatsappLink'));
     }
 
-    // ── Stripe ────────────────────────────────────────────────────────────
+    // ── Stripe ───────────────────────────────────────────────────────────
 
     public function stripe(Request $request): JsonResponse
     {
@@ -48,12 +47,16 @@ class FundsController extends Controller
         }
 
         try {
-            $stripe        = new StripeClient($stripeSecret);
-            $amountCents   = (int) round($validated['amount'] * 100);
+            $stripe      = new StripeClient($stripeSecret);
+            $amountCents = (int) round($validated['amount'] * 100);
+
             $paymentIntent = $stripe->paymentIntents->create([
                 'amount'   => $amountCents,
                 'currency' => 'usd',
-                'metadata' => ['user_id' => Auth::id(), 'user_email' => Auth::user()->email],
+                'metadata' => [
+                    'user_id'    => Auth::id(),
+                    'user_email' => Auth::user()->email,
+                ],
                 'automatic_payment_methods' => ['enabled' => true],
                 'statement_descriptor'      => substr(config('app.name'), 0, 22),
             ]);
@@ -62,6 +65,7 @@ class FundsController extends Controller
                 'client_secret' => $paymentIntent->client_secret,
                 'amount'        => $validated['amount'],
             ]);
+
         } catch (ApiErrorException $e) {
             Log::error('Stripe PaymentIntent creation failed: ' . $e->getMessage());
             return response()->json(['error' => 'Could not initiate payment.'], 500);
@@ -72,7 +76,9 @@ class FundsController extends Controller
 
     public function paypal(Request $request): JsonResponse
     {
-        $validated = $request->validate(['amount' => 'required|numeric|min:1|max:10000']);
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1|max:10000',
+        ]);
 
         $clientId = config('services.paypal.client_id');
         $secret   = config('services.paypal.secret');
@@ -95,11 +101,17 @@ class FundsController extends Controller
             $token = json_decode((string) $tokenRes->getBody(), true)['access_token'];
 
             $orderRes = $client->post("{$baseUrl}/v2/checkout/orders", [
-                'headers' => ['Authorization' => "Bearer {$token}", 'Content-Type' => 'application/json'],
-                'json'    => [
-                    'intent'         => 'CAPTURE',
+                'headers' => [
+                    'Authorization' => "Bearer {$token}",
+                    'Content-Type'  => 'application/json',
+                ],
+                'json' => [
+                    'intent' => 'CAPTURE',
                     'purchase_units' => [[
-                        'amount'    => ['currency_code' => 'USD', 'value' => number_format($validated['amount'], 2, '.', '')],
+                        'amount' => [
+                            'currency_code' => 'USD',
+                            'value'         => number_format($validated['amount'], 2, '.', ''),
+                        ],
                         'custom_id' => (string) Auth::id(),
                     ]],
                 ],
@@ -107,27 +119,22 @@ class FundsController extends Controller
 
             $order = json_decode((string) $orderRes->getBody(), true);
             return response()->json(['order_id' => $order['id']]);
+
         } catch (\Throwable $e) {
             Log::error('PayPal order creation failed: ' . $e->getMessage());
             return response()->json(['error' => 'Could not initiate PayPal payment.'], 500);
         }
     }
 
-    // ── Manual Payment (EasyPaisa / JazzCash / Bank) ──────────────────────
+    // ── Manual payment (EasyPaisa / JazzCash / Bank Transfer / Crypto) ────
 
-    /**
-     * FIX 1: Now saves screenshot to storage.
-     * FIX 2: Creates a FundRequest record (visible in admin Fund Requests page).
-     * FIX 3: Also creates Transaction for audit trail.
-     */
     public function manual(StorePaymentRequest $request)
     {
         $validated = $request->validated();
         $reference = strtoupper(trim($validated['reference']));
 
         // Guard: duplicate reference
-        if (FundRequest::where('transaction_id', $reference)->exists() ||
-            Transaction::where('reference', $reference)->exists()) {
+        if (Transaction::where('reference', $reference)->exists()) {
             return back()->withErrors([
                 'reference' => 'This transaction ID has already been submitted.',
             ]);
@@ -135,71 +142,46 @@ class FundsController extends Controller
 
         // Guard: account must exist AND be active
         $account = FundAccount::active()->find($validated['fund_account_id']);
-        if (!$account) {
+        if (! $account) {
             return back()->withErrors([
                 'fund_account_id' => 'The selected payment account is no longer available.',
             ]);
         }
 
-        // FIX 1: Store screenshot if uploaded
+        // Handle screenshot upload
         $screenshotPath = null;
         if ($request->hasFile('screenshot') && $request->file('screenshot')->isValid()) {
-            $screenshotPath = $request->file('screenshot')->store(
-                'fund-proofs/' . date('Y/m'),
-                'public'  // stored in storage/app/public — accessible via /storage/...
-            );
+            $screenshotPath = $request->file('screenshot')
+                ->store('payment-screenshots', 'public');
         }
 
         // Convert PKR → USD
         $rate        = ExchangeRateService::getUsdToPkr();
         $amountInUsd = round($validated['amount'] / $rate, 6);
 
-        // Find matching PaymentAccount (for FundRequest relation)
-        // FundRequest uses payment_accounts table, FundAccount uses fund_accounts table
-        // We look up by account number to bridge the two
-        $paymentAccount = PaymentAccount::where('account_number', $account->account_number)
-            ->orWhere('name', $account->name)
-            ->first();
-
         try {
-            \Illuminate\Support\Facades\DB::transaction(function () use (
-                $validated, $reference, $account, $paymentAccount,
-                $amountInUsd, $screenshotPath, $request
-            ) {
-                // FIX 2: Create FundRequest — this is what admin sees on /admin/fund-requests
-                FundRequest::create([
-                    'user_id'            => Auth::id(),
-                    'payment_account_id' => $paymentAccount?->id ?? 0,
-                    'amount'             => $validated['amount'],   // PKR
-                    'usd_amount'         => $amountInUsd,           // USD to credit
-                    'transaction_id'     => $reference,
-                    'screenshot_path'    => $screenshotPath,        // FIX 1
-                    'status'             => 'pending',
-                ]);
+            $transaction = Transaction::create([
+                'user_id'         => Auth::id(),
+                'amount'          => $amountInUsd,
+                'type'            => 'deposit',
+                'description'     => "Manual deposit via {$account->name} (PKR " .
+                                     number_format($validated['amount'], 2) . ')',
+                'status'          => 'pending',
+                'reference'       => $reference,
+                'gateway'         => 'manual',
+                'fund_account_id' => $account->id,
+                'screenshot_path' => $screenshotPath,
+            ]);
 
-                // Also create Transaction for full audit trail
-                $transaction = Transaction::create([
-                    'user_id'         => Auth::id(),
-                    'amount'          => $amountInUsd,
-                    'type'            => 'deposit',
-                    'description'     => "Manual deposit via {$account->name} (PKR " .
-                                        number_format($validated['amount'], 2) . ')',
-                    'status'          => 'pending',
-                    'reference'       => $reference,
-                    'gateway'         => 'manual',
-                    'fund_account_id' => $account->id,
-                ]);
-
-                PaymentLog::create([
-                    'user_id'        => Auth::id(),
-                    'transaction_id' => $transaction->id,
-                    'gateway'        => 'manual',
-                    'status'         => 'pending',
-                    'amount'         => $amountInUsd,
-                    'reference'      => $reference,
-                    'ip_address'     => $request->ip(),
-                ]);
-            });
+            PaymentLog::create([
+                'user_id'        => Auth::id(),
+                'transaction_id' => $transaction->id,
+                'gateway'        => 'manual',
+                'status'         => 'pending',
+                'amount'         => $amountInUsd,
+                'reference'      => $reference,
+                'ip_address'     => $request->ip(),
+            ]);
 
             Log::info('Manual payment submitted', [
                 'user_id'    => Auth::id(),
@@ -212,7 +194,7 @@ class FundsController extends Controller
                 ->with('success', 'Payment submitted — pending admin verification.');
 
         } catch (\Throwable $e) {
-            // Clean up uploaded file if DB failed
+            // Clean up uploaded file if DB insert failed
             if ($screenshotPath) {
                 Storage::disk('public')->delete($screenshotPath);
             }
