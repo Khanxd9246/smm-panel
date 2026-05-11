@@ -1,12 +1,12 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# nixpacks.toml — Railway Build Configuration
-# ONE file. ONE system. Predictable deploys.
+# nixpacks.toml — Railway Build Configuration (AI Upgrade)
 # ══════════════════════════════════════════════════════════════════════════════
 
 [phases.setup]
 nixPkgs = [
     "php82",
     "php82Extensions.pdo",
+    "php82Extensions.pdo_mysql",
     "php82Extensions.pdo_pgsql",
     "php82Extensions.mbstring",
     "php82Extensions.xml",
@@ -40,5 +40,11 @@ cmds = [
     "chmod -R 775 storage bootstrap/cache"
 ]
 
+# ── Start command ─────────────────────────────────────────────────────────────
+# Runs on every deploy. Order matters:
+#   1. migrate --force      → applies AI upgrade schema (safe, uses hasColumn guards)
+#   2. queue:table          → creates jobs table if missing (needed for database queue driver)
+#   3. config/route/view cache → optimise for production
+#   4. php -S               → start the built-in server (Railway-friendly, no nginx needed)
 [start]
-cmd = "php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && php -d opcache.enable_cli=1 -d opcache.enable=1 -d opcache.memory_consumption=128 -d opcache.max_accelerated_files=10000 -d opcache.validate_timestamps=0 -d opcache.jit_buffer_size=64M -d opcache.jit=tracing -S 0.0.0.0:$PORT -t public"
+cmd = "php artisan migrate --force && php artisan queue:table --no-interaction 2>/dev/null; php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php -d opcache.enable_cli=1 -d opcache.enable=1 -d opcache.memory_consumption=128 -d opcache.max_accelerated_files=10000 -d opcache.validate_timestamps=0 -d opcache.jit_buffer_size=64M -d opcache.jit=tracing -S 0.0.0.0:$PORT -t public"

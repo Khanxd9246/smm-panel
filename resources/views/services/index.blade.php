@@ -1,236 +1,211 @@
 @extends('layouts.app')
-@section('title', 'Services & Pricing')
-@section('page-title', 'Services & Pricing')
+
+@section('title', 'Services')
+
+@push('styles')
+<style>
+.service-card { border: none; border-radius: 14px; transition: all .2s; }
+.service-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.12)!important; }
+.delivery-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:12px; }
+.tag-chip { display:inline-block; font-size:.64rem; padding:1px 7px; border-radius:10px; margin:1px; background:#f1f5f9; color:#475569; }
+.quality-bar { height: 5px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+.quality-fill { height: 100%; border-radius: 3px; }
+.filter-pill { border-radius: 20px; font-size:.8rem; padding:4px 14px; }
+.filter-pill.active { background:#6366f1; color:white; border-color:#6366f1; }
+</style>
+@endpush
 
 @section('content')
+<div class="container py-4">
 
-{{-- ── Page header ──────────────────────────────────────────────────────── --}}
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 fade-up">
-    <div>
-        <h1 class="font-h1 text-on-surface" style="font-size:32px">Services &amp; Pricing</h1>
-        <p class="text-on-surface-variant text-sm mt-1">
-            {{ $services->total() }} services found
-        </p>
-    </div>
-</div>
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="fw-bold mb-0">📦 Our Services</h2>
+    <small class="text-muted">{{ $services->total() }} services available</small>
+  </div>
 
-{{-- ── Filter bar ───────────────────────────────────────────────────────── --}}
-<form method="GET" action="{{ route('services.index') }}"
-      id="filter-form"
-      class="glass-card rounded-xl p-4 mb-6 fade-up">
+  {{-- ── Filters ──────────────────────────────────────────────── --}}
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-body p-3">
+      {{-- Quick filter pills --}}
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        @php
+          $filters = [
+            ''          => '🌍 All',
+            'instant'   => '⚡ Instant',
+            'fast'      => '🚀 Fast',
+            'refill'    => '🔄 Refill',
+            'premium'   => '⭐ Premium',
+            'high_quality' => '🏆 High Quality',
+            'best_seller'  => '🔥 Best Seller',
+          ];
+        @endphp
+        @foreach($filters as $val => $label)
+          <a href="{{ request()->fullUrlWithQuery(['filter' => $val, 'page' => null]) }}"
+            class="btn btn-outline-secondary filter-pill {{ request('filter', '') === $val ? 'active' : '' }}">
+            {{ $label }}
+          </a>
+        @endforeach
+      </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
-        {{-- Platform dropdown --}}
-        <div>
-            <label class="block text-xs text-outline mb-1.5 uppercase tracking-wider">Platform</label>
-            <select name="platform"
-                    class="w-full glass-input bg-transparent py-2.5 px-3 rounded-lg border border-outline-variant/40 focus:border-primary text-sm transition-colors"
-                    onchange="this.form.submit()">
-                <option value="">All Platforms</option>
-                @foreach($platforms as $p)
-                    <option value="{{ $p }}" @selected(request('platform') === $p)>
-                        {{ ucfirst($p) }}
-                    </option>
-                @endforeach
-            </select>
+      {{-- Search + Sort Row --}}
+      <form method="GET" class="row g-2">
+        @if(request('filter')) <input type="hidden" name="filter" value="{{ request('filter') }}"> @endif
+        <div class="col-md-4">
+          <input type="text" name="search" class="form-control form-control-sm"
+            placeholder="🔍 Search services..." value="{{ request('search') }}">
         </div>
-
-        {{-- Type dropdown --}}
-        <div>
-            <label class="block text-xs text-outline mb-1.5 uppercase tracking-wider">Type</label>
-            <select name="type"
-                    class="w-full glass-input bg-transparent py-2.5 px-3 rounded-lg border border-outline-variant/40 focus:border-primary text-sm transition-colors"
-                    onchange="this.form.submit()">
-                <option value="">All Types</option>
-                @foreach($types as $t)
-                    <option value="{{ $t }}" @selected(request('type') === $t)>
-                        {{ ucfirst($t) }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Search --}}
-        <div>
-            <label class="block text-xs text-outline mb-1.5 uppercase tracking-wider">Search</label>
-            <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px] pointer-events-none">search</span>
-                <input type="text" name="q" value="{{ request('q') }}"
-                       placeholder="Service name…"
-                       class="w-full glass-input bg-transparent pl-10 pr-4 py-2.5 rounded-lg border border-outline-variant/40 focus:border-primary text-sm transition-colors">
-            </div>
-        </div>
-
-        {{-- Sort --}}
-        <div>
-            <label class="block text-xs text-outline mb-1.5 uppercase tracking-wider">Sort</label>
-            <select name="sort"
-                    class="w-full glass-input bg-transparent py-2.5 px-3 rounded-lg border border-outline-variant/40 focus:border-primary text-sm transition-colors"
-                    onchange="this.form.submit()">
-                <option value="price" @selected(request('sort','price') === 'price')>Cheapest First</option>
-                <option value="name"  @selected(request('sort') === 'name')>Name A–Z</option>
-            </select>
-        </div>
-
-    </div>
-
-    {{-- Active filter badges + clear --}}
-    @if(request()->hasAny(['platform','type','q','sort']))
-    <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-outline-variant/20">
-        @if(request('platform'))
-            <span class="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 px-3 py-1 rounded-full text-xs font-semibold">
-                {{ ucfirst(request('platform')) }}
-                <a href="{{ request()->fullUrlWithoutQuery('platform') }}" class="hover:text-error ml-1">✕</a>
-            </span>
-        @endif
-        @if(request('type'))
-            <span class="inline-flex items-center gap-1 bg-secondary/10 text-secondary border border-secondary/30 px-3 py-1 rounded-full text-xs font-semibold">
-                {{ ucfirst(request('type')) }}
-                <a href="{{ request()->fullUrlWithoutQuery('type') }}" class="hover:text-error ml-1">✕</a>
-            </span>
-        @endif
-        @if(request('q'))
-            <span class="inline-flex items-center gap-1 bg-tertiary/10 text-tertiary border border-tertiary/30 px-3 py-1 rounded-full text-xs font-semibold">
-                "{{ request('q') }}"
-                <a href="{{ request()->fullUrlWithoutQuery('q') }}" class="hover:text-error ml-1">✕</a>
-            </span>
-        @endif
-        <a href="{{ route('services.index') }}"
-           class="inline-flex items-center gap-1 text-outline hover:text-on-surface text-xs underline ml-auto">
-            Clear all filters
-        </a>
-    </div>
-    @endif
-
-</form>
-
-{{-- ── Services table ───────────────────────────────────────────────────── --}}
-<div class="glass-card rounded-xl overflow-hidden fade-up">
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="border-b border-outline-variant/30">
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal">Service</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal">Platform / Type</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal text-right">Rate / 1K</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal text-right hidden sm:table-cell">PKR / 1K</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal text-right hidden md:table-cell">Min</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal text-right hidden md:table-cell">Max</th>
-                    <th class="px-5 py-3 font-label-caps text-label-caps text-outline font-normal text-center">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($services as $svc)
-                <tr class="border-b border-surface-container-high hover:bg-white/5 transition-colors">
-
-                    {{-- Name + description --}}
-                    <td class="px-5 py-4">
-                        <p class="text-on-surface font-medium text-sm">{{ $svc->name }}</p>
-                        @if($svc->description)
-                        <p class="text-outline text-xs mt-0.5 max-w-xs truncate">{{ $svc->description }}</p>
-                        @endif
-                    </td>
-
-                    {{-- Platform / Type badges --}}
-                    <td class="px-5 py-4">
-                        @if($svc->category)
-                            @if($svc->category->platform)
-                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 mr-1">
-                                {{ $svc->category->platform }}
-                            </span>
-                            @endif
-                            @if($svc->category->type)
-                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20">
-                                {{ $svc->category->type }}
-                            </span>
-                            @endif
-                        @else
-                            <span class="text-outline text-xs">—</span>
-                        @endif
-                    </td>
-
-                    {{-- Rate USD --}}
-                    <td class="px-5 py-4 text-right">
-                        <span class="text-primary font-bold font-inter">${{ number_format($svc->rate, 4) }}</span>
-                    </td>
-
-                    {{-- Rate PKR --}}
-                    <td class="px-5 py-4 text-right text-tertiary text-sm hidden sm:table-cell">
-                        ₨{{ number_format($svc->rate * session('usd_pkr_rate', 280), 1) }}
-                    </td>
-
-                    <td class="px-5 py-4 text-right text-outline text-sm hidden md:table-cell">{{ number_format($svc->min) }}</td>
-                    <td class="px-5 py-4 text-right text-outline text-sm hidden md:table-cell">{{ number_format($svc->max) }}</td>
-
-                    {{-- Order CTA --}}
-                    <td class="px-5 py-4 text-center">
-                        <a href="{{ route('orders.create') }}?service={{ $svc->id }}"
-                           class="inline-flex items-center gap-1 bg-gradient-primary text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-110 transition-all neon-glow-primary">
-                            <span class="material-symbols-outlined text-[14px]">add</span> Order
-                        </a>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="7" class="px-5 py-16 text-center text-outline">
-                        <span class="material-symbols-outlined text-[48px] block mb-3 opacity-20">inventory_2</span>
-                        <p class="mb-2">No services match your filters.</p>
-                        <a href="{{ route('services.index') }}" class="text-primary text-sm hover:underline">Clear filters →</a>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    {{-- Pagination --}}
-    @if($services->hasPages())
-    <div class="px-5 py-4 border-t border-outline-variant/30 flex items-center justify-between flex-wrap gap-3">
-        <p class="text-xs text-outline">
-            Showing {{ $services->firstItem() }}–{{ $services->lastItem() }} of {{ $services->total() }}
-        </p>
-        <div class="flex gap-1">
-            @if($services->onFirstPage())
-                <span class="px-3 py-1.5 text-xs text-outline border border-outline-variant/30 rounded-lg opacity-40">← Prev</span>
-            @else
-                <a href="{{ $services->previousPageUrl() }}"
-                   class="px-3 py-1.5 text-xs text-on-surface border border-outline-variant/30 rounded-lg hover:bg-white/5 transition-colors">← Prev</a>
-            @endif
-
-            {{-- Page numbers (condensed) --}}
-            @foreach($services->getUrlRange(max(1,$services->currentPage()-2), min($services->lastPage(),$services->currentPage()+2)) as $page => $url)
-                @if($page === $services->currentPage())
-                    <span class="px-3 py-1.5 text-xs bg-primary/20 text-primary border border-primary/40 rounded-lg font-bold">{{ $page }}</span>
-                @else
-                    <a href="{{ $url }}" class="px-3 py-1.5 text-xs text-on-surface border border-outline-variant/30 rounded-lg hover:bg-white/5 transition-colors">{{ $page }}</a>
-                @endif
+        <div class="col-md-2">
+          <select name="category" class="form-select form-select-sm">
+            <option value="">All Categories</option>
+            @foreach($categories as $cat)
+              <option value="{{ $cat->id }}" @selected(request('category') == $cat->id)>{{ $cat->name }}</option>
             @endforeach
-
-            @if($services->hasMorePages())
-                <a href="{{ $services->nextPageUrl() }}"
-                   class="px-3 py-1.5 text-xs text-on-surface border border-outline-variant/30 rounded-lg hover:bg-white/5 transition-colors">Next →</a>
-            @else
-                <span class="px-3 py-1.5 text-xs text-outline border border-outline-variant/30 rounded-lg opacity-40">Next →</span>
-            @endif
+          </select>
         </div>
+        <div class="col-md-2">
+          <select name="sort" class="form-select form-select-sm">
+            <option value="price" @selected(request('sort') === 'price')>💰 Cheapest First</option>
+            <option value="quality" @selected(request('sort') === 'quality')>🏆 Highest Quality</option>
+            <option value="speed" @selected(request('sort') === 'speed')>⚡ Fastest</option>
+            <option value="popularity" @selected(request('sort') === 'popularity')>🔥 Popular</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary btn-sm w-100">Apply</button>
+        </div>
+        @if(request()->hasAny(['search','category','sort','filter']))
+        <div class="col-md-2">
+          <a href="{{ route('services.index') }}" class="btn btn-outline-secondary btn-sm w-100">Clear</a>
+        </div>
+        @endif
+      </form>
     </div>
-    @endif
+  </div>
+
+  {{-- ── Service Cards ─────────────────────────────────────────── --}}
+  @if($services->isEmpty())
+    <div class="text-center py-5 text-muted">
+      <div class="fs-1">🔍</div>
+      <h5>No services found</h5>
+      <a href="{{ route('services.index') }}" class="btn btn-outline-primary btn-sm mt-2">Clear Filters</a>
+    </div>
+  @else
+  <div class="row g-3">
+    @foreach($services as $service)
+    <div class="col-md-6 col-xl-4">
+      <div class="card service-card shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+
+          {{-- Header --}}
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="flex-grow-1 pe-2">
+              <h6 class="mb-1 fw-bold" style="line-height:1.3;">
+                {{ $service->name }}
+                @if($service->is_premium)
+                  <span class="badge bg-warning text-dark ms-1" style="font-size:.6rem;">⭐ Premium</span>
+                @endif
+              </h6>
+              <small class="text-muted">{{ $service->category?->name }}</small>
+            </div>
+            <div class="text-end flex-shrink-0">
+              <div class="fs-5 fw-bold text-success">${{ number_format($service->rate, 4) }}</div>
+              <small class="text-muted">per 1000</small>
+            </div>
+          </div>
+
+          {{-- Delivery + Quality Badges --}}
+          <div class="d-flex align-items-center gap-2 mb-3">
+            @if($service->delivery_badge)
+              <span class="delivery-badge bg-{{ match($service->delivery_badge) {
+                'instant' => 'success', 'fast' => 'info', 'slow' => 'warning', default => 'secondary'
+              } }} text-white">
+                {{ $service->delivery_label }}
+              </span>
+            @endif
+            @if($service->has_refill)
+              <span class="delivery-badge bg-primary text-white">🔄 Refill</span>
+            @endif
+            @if(($service->quality_score ?? 0) >= 8)
+              <span class="delivery-badge bg-warning text-dark">🏆 Top Quality</span>
+            @endif
+          </div>
+
+          {{-- Delivery Times --}}
+          @if($service->estimated_start || $service->estimated_completion)
+          <div class="bg-light rounded p-2 mb-3 small">
+            @if($service->estimated_start)
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">⏱ Start time:</span>
+                <strong>{{ $service->estimated_start }}</strong>
+              </div>
+            @endif
+            @if($service->estimated_completion)
+              <div class="d-flex justify-content-between mt-1">
+                <span class="text-muted">✅ Completion:</span>
+                <strong>{{ $service->estimated_completion }}</strong>
+              </div>
+            @endif
+          </div>
+          @endif
+
+          {{-- Quality Bar --}}
+          @if($service->quality_score)
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="text-muted">Quality</small>
+              <small class="fw-bold text-{{ $service->quality_color }}">{{ $service->quality_score }}/10</small>
+            </div>
+            <div class="quality-bar">
+              <div class="quality-fill bg-{{ $service->quality_color }}"
+                style="width: {{ $service->quality_score * 10 }}%"></div>
+            </div>
+          </div>
+          @endif
+
+          {{-- Stats Row --}}
+          @if($service->success_rate > 0)
+          <div class="d-flex gap-3 mb-3 small">
+            <div><span class="text-success fw-bold">{{ $service->success_rate }}%</span> <span class="text-muted">success</span></div>
+            @if($service->orders_count > 0)
+              <div><span class="fw-bold">{{ number_format($service->orders_count) }}</span> <span class="text-muted">orders</span></div>
+            @endif
+          </div>
+          @endif
+
+          {{-- Tags --}}
+          @if($service->all_tags)
+          <div class="mb-3">
+            @foreach(array_slice($service->all_tags, 0, 5) as $tag)
+              <span class="tag-chip">{{ $tag }}</span>
+            @endforeach
+          </div>
+          @endif
+
+          {{-- Min/Max + CTA --}}
+          <div class="mt-auto">
+            <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+              <span>Min: {{ number_format($service->min) }}</span>
+              <span>Max: {{ number_format($service->max) }}</span>
+            </div>
+            <a href="{{ route('orders.create', ['service_id' => $service->id]) }}"
+              class="btn btn-primary btn-sm w-100">
+              Order Now →
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    @endforeach
+  </div>
+
+  {{-- Pagination --}}
+  @if($services->hasPages())
+  <div class="d-flex justify-content-center mt-4">
+    {{ $services->links() }}
+  </div>
+  @endif
+  @endif
+
 </div>
-
-@endsection
-
-@section('scripts')
-<script>
-// Auto-submit on search input with debounce to avoid hammering the server
-(function () {
-    const searchInput = document.querySelector('input[name="q"]');
-    if (!searchInput) return;
-    let timer;
-    searchInput.addEventListener('input', () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => searchInput.closest('form').submit(), 400);
-    });
-})();
-</script>
 @endsection
