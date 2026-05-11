@@ -95,8 +95,8 @@ tailwind.config = {
 {{-- Mobile overlay --}}
 <div id="sidebar-overlay" class="fixed inset-0 z-40 bg-black/60 hidden md:hidden" onclick="closeSidebar()"></div>
 
-{{-- Sidebar Desktop + Mobile --}}
-<nav id="sidebar" class="hidden md:flex flex-col fixed left-0 top-0 h-full py-6 w-64 border-r border-white/5 bg-slate-950/80 backdrop-blur-md z-50 transition-transform duration-300">
+{{-- Sidebar --}}
+<nav id="sidebar" class="hidden md:flex flex-col fixed left-0 top-0 h-full py-6 w-64 border-r border-white/5 bg-slate-950/80 backdrop-blur-md z-50 transition-transform duration-300 overflow-y-auto">
     <div class="px-6 mb-8">
         <div class="flex items-center gap-3">
             <span class="text-2xl font-black italic text-blue-500">{{ config('app.name','SMM Elite') }}</span>
@@ -105,6 +105,8 @@ tailwind.config = {
     </div>
 
     <div class="flex flex-col gap-1 mt-4 flex-grow font-inter text-sm font-medium px-3">
+
+        {{-- ── User Navigation ──────────────────────────────────── --}}
         <a href="{{ route('dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
             <span class="material-symbols-outlined text-[20px]" {{ request()->routeIs('dashboard') ? "style=font-variation-settings:'FILL'_1" : "" }}>dashboard</span> Dashboard
         </a>
@@ -130,24 +132,78 @@ tailwind.config = {
             <span class="material-symbols-outlined text-[20px]">help_outline</span> Support
         </a>
 
+        {{-- ── Admin Section ────────────────────────────────────── --}}
         @if(auth()->user()->is_admin ?? false)
         <div class="mt-4 pt-4 border-t border-white/5">
             <p class="text-[10px] text-slate-600 uppercase tracking-widest px-4 mb-2 font-label-caps">Admin</p>
+
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
                 <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span> Command Center
             </a>
+
             <a href="{{ route('admin.fund_accounts.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.fund_accounts.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
                 <span class="material-symbols-outlined text-[20px]">account_balance</span> Payment Accounts
             </a>
+
+            {{-- Fund Requests with live pending badge --}}
             <a href="{{ route('admin.fund-requests.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.fund-requests.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                <span class="material-symbols-outlined text-[20px]">payments</span> Fund Requests
+                <span class="material-symbols-outlined text-[20px]">payments</span>
+                <span class="flex-1">Fund Requests</span>
+                @php
+                    try { $pendingFundCount = \App\Models\FundRequest::where('status','pending')->count(); }
+                    catch (\Exception $e) { $pendingFundCount = 0; }
+                @endphp
+                @if($pendingFundCount > 0)
+                    <span class="bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-4">{{ $pendingFundCount }}</span>
+                @endif
             </a>
+
+            {{-- ── AI Features ──────────────────────────────────── --}}
+            <div class="mt-3 pt-3 border-t border-white/5">
+                <p class="text-[10px] text-slate-600 uppercase tracking-widest px-4 mb-2 font-label-caps">🤖 AI Features</p>
+
+                <a href="{{ route('admin.ai.services.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.services.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                    <span class="material-symbols-outlined text-[20px]">smart_toy</span> AI Services
+                </a>
+
+                <a href="{{ route('admin.ai.suppliers.health') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.suppliers.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                    <span class="material-symbols-outlined text-[20px]">monitor_heart</span> Supplier Health
+                </a>
+
+                {{-- Low Quality with live count badge --}}
+                <a href="{{ route('admin.ai.quality.low') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.quality.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                    <span class="material-symbols-outlined text-[20px]">warning</span>
+                    <span class="flex-1">Low Quality</span>
+                    @php
+                        try {
+                            $lowQCount = \Illuminate\Support\Facades\Schema::hasColumn('services','quality_score')
+                                ? \App\Models\Service::where('quality_score','<=',3)->count()
+                                : 0;
+                        } catch (\Exception $e) { $lowQCount = 0; }
+                    @endphp
+                    @if($lowQCount > 0)
+                        <span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-4">{{ $lowQCount }}</span>
+                    @endif
+                </a>
+
+                <a href="{{ route('admin.ai.duplicates.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.duplicates.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                    <span class="material-symbols-outlined text-[20px]">content_copy</span> Duplicates
+                </a>
+
+                <a href="{{ route('admin.ai.pricing.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.pricing.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
+                    <span class="material-symbols-outlined text-[20px]">price_change</span> Auto Pricing
+                </a>
+            </div>
+            {{-- ── End AI Features ──────────────────────────────── --}}
+
         </div>
         @endif
+        {{-- ── End Admin Section ────────────────────────────────── --}}
+
     </div>
 
     {{-- Balance widget --}}
-    <div class="px-4 mt-auto">
+    <div class="px-4 mt-auto pt-4">
         <div class="glass-card rounded-xl p-3 mb-3">
             <p class="text-[10px] text-outline uppercase tracking-widest font-label-caps mb-1">Wallet</p>
             <p class="text-lg font-bold text-on-surface neon-text-primary">${{ number_format(auth()->user()->funds ?? 0, 2) }}</p>
@@ -242,58 +298,4 @@ tailwind.config = {
 
 {{-- Mobile bottom nav --}}
 <nav class="fixed bottom-0 w-full z-50 flex justify-around items-center h-16 px-4 md:hidden bg-slate-900/90 backdrop-blur-lg border-t border-blue-500/30 rounded-t-2xl shadow-[0_-5px_20px_rgba(59,130,246,0.2)]">
-    <a href="{{ route('dashboard') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('dashboard') ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500' }} p-2 rounded-lg">
-        <span class="material-symbols-outlined" {{ request()->routeIs('dashboard') ? "style=font-variation-settings:'FILL'_1" : "" }}>home</span>
-        <span class="text-[10px] uppercase font-bold mt-0.5 font-label-caps">Home</span>
-    </a>
-    <a href="{{ route('orders.create') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('orders.create') ? 'text-blue-400' : 'text-slate-500' }} p-2 rounded-lg">
-        <span class="material-symbols-outlined">add_circle</span>
-        <span class="text-[10px] uppercase font-bold mt-0.5 font-label-caps">Order</span>
-    </a>
-    <a href="{{ route('orders.index') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('orders.index') ? 'text-blue-400' : 'text-slate-500' }} p-2 rounded-lg">
-        <span class="material-symbols-outlined">history</span>
-        <span class="text-[10px] uppercase font-bold mt-0.5 font-label-caps">Orders</span>
-    </a>
-    <a href="{{ route('funds.index') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('funds.*') ? 'text-blue-400' : 'text-slate-500' }} p-2 rounded-lg">
-        <span class="material-symbols-outlined">payments</span>
-        <span class="text-[10px] uppercase font-bold mt-0.5 font-label-caps">Wallet</span>
-    </a>
-    <button onclick="toggleSidebar()" class="flex flex-col items-center justify-center text-slate-500 p-2 rounded-lg">
-        <span class="material-symbols-outlined">menu</span>
-        <span class="text-[10px] uppercase font-bold mt-0.5 font-label-caps">Menu</span>
-    </button>
-</nav>
-
-{{-- Toast container --}}
-<div id="toast-container"></div>
-
-<script>
-function toggleSidebar(){
-    const s=document.getElementById('sidebar');
-    const o=document.getElementById('sidebar-overlay');
-    s.classList.toggle('hidden');
-    s.classList.toggle('flex');
-    o.classList.toggle('hidden');
-}
-function closeSidebar(){
-    document.getElementById('sidebar').classList.add('hidden');
-    document.getElementById('sidebar').classList.remove('flex');
-    document.getElementById('sidebar-overlay').classList.add('hidden');
-}
-function showToast(msg,type='info'){
-    const c={success:'#4edea3',danger:'#ffb4ab',info:'#adc6ff',warning:'#fcd34d'};
-    const i={success:'check_circle',danger:'cancel',info:'info',warning:'warning'};
-    const t=document.createElement('div');
-    t.className='toast';
-    t.style.borderLeft=`3px solid ${c[type]}`;
-    t.innerHTML=`<span class="material-symbols-outlined" style="color:${c[type]};font-size:18px;flex-shrink:0">${i[type]}</span><span>${msg}</span>`;
-    document.getElementById('toast-container').appendChild(t);
-    requestAnimationFrame(()=>t.classList.add('show'));
-    setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},4000);
-}
-@if(session('success')) showToast("{{ addslashes(session('success')) }}",'success'); @endif
-@if(session('error'))   showToast("{{ addslashes(session('error')) }}",'danger');  @endif
-</script>
-@yield('scripts')
-</body>
-</html>
+    <a href="{{ route('d
