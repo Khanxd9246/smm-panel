@@ -1,301 +1,275 @@
-<!DOCTYPE html>
-<html class="dark" lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<title>@yield('title', config('app.name','SMM Elite'))</title>
-<script src="https://cdn.tailwindcss.com/3.4.17?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0b1326">
-<script>
-tailwind.config = {
-  darkMode: "class",
-  theme: {
-    extend: {
-      colors: {
-        "background":               "#0b1326",
-        "surface":                  "#0b1326",
-        "surface-container":        "#171f33",
-        "surface-container-low":    "#131b2e",
-        "surface-container-high":   "#222a3d",
-        "surface-container-highest":"#2d3449",
-        "surface-variant":          "#2d3449",
-        "surface-bright":           "#31394d",
-        "on-background":            "#dae2fd",
-        "on-surface":               "#dae2fd",
-        "on-surface-variant":       "#c2c6d6",
-        "primary":                  "#adc6ff",
-        "primary-container":        "#4d8eff",
-        "on-primary":               "#002e6a",
-        "secondary":                "#d0bcff",
-        "secondary-container":      "#571bc1",
-        "tertiary":                 "#4edea3",
-        "tertiary-container":       "#00a572",
-        "error":                    "#ffb4ab",
-        "error-container":          "#93000a",
-        "outline":                  "#8c909f",
-        "outline-variant":          "#424754",
-      },
-      fontFamily: {
-        "inter":       ["Inter","sans-serif"],
-        "body-md":     ["Inter"],
-        "body-sm":     ["Inter"],
-        "body-lg":     ["Inter"],
-        "h1":          ["Inter"],
-        "h2":          ["Inter"],
-        "h3":          ["Inter"],
-        "label-caps":  ["Space Grotesk"],
-      },
-      fontSize: {
-        "body-lg":    ["18px",{lineHeight:"1.6",fontWeight:"400"}],
-        "body-md":    ["16px",{lineHeight:"1.6",fontWeight:"400"}],
-        "body-sm":    ["14px",{lineHeight:"1.5",fontWeight:"400"}],
-        "h1":         ["48px",{lineHeight:"1.2",letterSpacing:"-0.02em",fontWeight:"700"}],
-        "h2":         ["32px",{lineHeight:"1.3",letterSpacing:"-0.01em",fontWeight:"600"}],
-        "h3":         ["24px",{lineHeight:"1.4",fontWeight:"600"}],
-        "label-caps": ["12px",{lineHeight:"1",letterSpacing:"0.1em",fontWeight:"600"}],
-      },
-      spacing: {
-        "xs":"0.5rem","sm":"1rem","md":"1.5rem","lg":"2rem","xl":"3rem",
-        "gutter":"24px","base":"4px","container-max":"1440px",
-      },
-      borderRadius: { DEFAULT:"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px" },
-    }
-  }
-}
-</script>
+@extends('layouts.app')
+@section('title', 'New Order')
+@section('page-title', 'New Order Wizard')
+
+@section('css')
 <style>
-.glass-panel{background-color:rgba(11,19,38,0.4);backdrop-filter:blur(12px);border:1px solid rgba(140,144,159,0.2)}
-.glass-card{background-color:rgba(23,31,51,0.5);backdrop-filter:blur(16px);border:1px solid rgba(173,198,255,0.1);box-shadow:0 8px 32px 0 rgba(0,0,0,0.3)}
-.neon-glow-primary{box-shadow:0 0 15px rgba(173,198,255,0.2),inset 0 1px 0 rgba(255,255,255,0.1)}
-.neon-text-primary{text-shadow:0 0 8px rgba(173,198,255,0.5)}
-.bg-gradient-primary{background:linear-gradient(135deg,#4d8eff 0%,#adc6ff 100%)}
-.glass-input{background:transparent;border:none;border-bottom:1px solid rgba(173,198,255,0.3);color:#dae2fd}
-.glass-input:focus{outline:none;border-bottom:1px solid #adc6ff;box-shadow:0 4px 15px -3px rgba(173,198,255,0.3)}
-.nav-active{background:rgba(59,130,246,0.1);color:#93c5fd;border-right:4px solid #3b82f6}
-#toast-container{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{background:rgba(23,31,51,0.95);border:1px solid rgba(173,198,255,0.2);border-radius:10px;padding:10px 16px;font-size:13px;color:#dae2fd;display:flex;align-items:center;gap:10px;pointer-events:all;opacity:0;transition:opacity 0.25s;min-width:240px;backdrop-filter:blur(12px)}
-.toast.show{opacity:1}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.fade-up{animation:fadeUp 0.3s ease forwards}
+    /* Step Indicator Styles */
+    .step-wrap { display: flex; align-items: center; margin-bottom: 2rem; }
+    .step-item { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px; }
+    .step-circle { 
+        width: 36px; height: 36px; border-radius: 50%; border: 2px solid #424754; 
+        display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #8c909f; transition: all .3s; 
+    }
+    .step-circle.active { border-color: #adc6ff; color: #adc6ff; background: rgba(173,198,255,.1); box-shadow: 0 0 12px rgba(173,198,255,.25); }
+    .step-circle.done { border-color: #4edea3; background: #4edea3; color: #003824; }
+    .step-label { font-size: 10px; color: #8c909f; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .step-line { flex: 1; height: 1px; background: #424754; margin-bottom: 18px; }
+
+    /* Platform Grid */
+    .platform-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media(max-width:480px){ .platform-grid { grid-template-columns: repeat(3, 1fr); } }
+    .pf-card { 
+        background: rgba(23,31,51,.6); border: 1.5px solid rgba(173,198,255,.1); border-radius: 14px; 
+        padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: all .2s; 
+    }
+    .pf-card:hover { border-color: #adc6ff; transform: translateY(-2px); }
+    .pf-card.selected { border-color: #adc6ff; background: rgba(173,198,255,.09); }
+    .pf-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; }
+    .pf-name { font-size: 11px; font-weight: 600; color: #8c909f; }
+
+    /* Type Buttons */
+    .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .type-btn { 
+        background: rgba(23,31,51,.5); border: 1.5px solid transparent; border-radius: 12px; 
+        padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all .2s; 
+    }
+    .type-btn.selected { border-color: #adc6ff; background: rgba(173,198,255,.09); }
+
+    /* Service Rows */
+    .svc-row { 
+        padding: 12px 14px; border-radius: 10px; border: 1.5px solid rgba(173,198,255,.1); 
+        margin-bottom: 6px; background: rgba(23,31,51,.3); width: 100%; text-align: left; transition: all .15s;
+    }
+    .svc-row.selected { border-color: #adc6ff; background: rgba(173,198,255,.09); }
+    .step-content { display: none; }
+    .step-content.active { display: block; }
 </style>
-@yield('css')
-</head>
-<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:flex-row relative overflow-x-hidden">
+@endsection
 
-{{-- Ambient background lighting --}}
-<div class="fixed inset-0 z-0 pointer-events-none opacity-30">
-    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-container blur-[150px]"></div>
-    <div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-secondary-container blur-[120px]"></div>
-</div>
+@section('content')
+<div class="max-w-2xl mx-auto px-2">
 
-{{-- Mobile overlay --}}
-<div id="sidebar-overlay" class="fixed inset-0 z-40 bg-black/60 hidden md:hidden" onclick="closeSidebar()"></div>
-
-{{-- Sidebar --}}
-<nav id="sidebar" class="hidden md:flex flex-col fixed left-0 top-0 h-full py-6 w-64 border-r border-white/5 bg-slate-950/80 backdrop-blur-md z-50 transition-transform duration-300 overflow-y-auto">
-    <div class="px-6 mb-8">
-        <div class="flex items-center gap-3">
-            <span class="text-2xl font-black italic text-blue-500">{{ config('app.name','SMM Elite') }}</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1 uppercase tracking-widest font-label-caps">Elite Control</p>
+    {{-- Progress Bar --}}
+    <div class="step-wrap">
+        @foreach(['Platform','Type','Service','Details','Confirm'] as $i => $lbl)
+            <div class="step-item">
+                <div class="step-circle {{ $i===0?'active':'' }}" id="sc-{{ $i+1 }}">{{ $i+1 }}</div>
+                <p class="step-label">{{ $lbl }}</p>
+            </div>
+            @if($i < 4) <div class="step-line"></div> @endif
+        @endforeach
     </div>
 
-    <div class="flex flex-col gap-1 mt-4 flex-grow font-inter text-sm font-medium px-3">
-
-        {{-- ── User Navigation ──────────────────────────────────── --}}
-        <a href="{{ route('dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]" {{ request()->routeIs('dashboard') ? "style=font-variation-settings:'FILL'_1" : "" }}>dashboard</span> Dashboard
-        </a>
-        <a href="{{ route('orders.create') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('orders.create') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">add_circle</span> New Order
-        </a>
-        <a href="{{ route('orders.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('orders.index') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">shopping_cart</span> Orders
-        </a>
-        <a href="{{ route('services.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('services.*') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">list_alt</span> Services
-        </a>
-        <a href="{{ route('analytics.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('analytics.*') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">analytics</span> Analytics
-        </a>
-        <a href="{{ route('referral.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('referral.*') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">group_add</span> Referrals
-        </a>
-        <a href="{{ route('funds.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('funds.*') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">account_balance_wallet</span> Add Funds
-        </a>
-        <a href="{{ route('tickets.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('tickets.*') ? 'bg-blue-500/10 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-            <span class="material-symbols-outlined text-[20px]">help_outline</span> Support
-        </a>
-
-        {{-- ── Admin Section ────────────────────────────────────── --}}
-        @if(auth()->user()->is_admin ?? false)
-        <div class="mt-4 pt-4 border-t border-white/5">
-            <p class="text-[10px] text-slate-600 uppercase tracking-widest px-4 mb-2 font-label-caps">Admin</p>
-
-            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span> Command Center
-            </a>
-
-            <a href="{{ route('admin.fund_accounts.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.fund_accounts.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                <span class="material-symbols-outlined text-[20px]">account_balance</span> Payment Accounts
-            </a>
-
-            {{-- Fund Requests with live pending badge --}}
-            <a href="{{ route('admin.fund-requests.index') }}" class="flex items-center gap-4 px-4 py-3 rounded-lg {{ request()->routeIs('admin.fund-requests.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                <span class="material-symbols-outlined text-[20px]">payments</span>
-                <span class="flex-1">Fund Requests</span>
+    {{-- STEP 1: Platform Selection --}}
+    <div class="step-content active" id="step-1">
+        <div class="glass-card rounded-xl p-6">
+            <h2 class="text-xl font-bold mb-1">New Order</h2>
+            <p class="text-outline text-sm mb-5">Select a platform to begin.</p>
+            <div class="platform-grid">
                 @php
-                    try { $pendingFundCount = \App\Models\FundRequest::where('status','pending')->count(); }
-                    catch (\Exception $e) { $pendingFundCount = 0; }
+                $platforms = [
+                    ['Instagram','linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)','fab fa-instagram',['instagram','ig']],
+                    ['TikTok',   'linear-gradient(135deg,#010101,#69C9D0)',         'fab fa-tiktok',   ['tiktok']],
+                    ['YouTube',  'linear-gradient(135deg,#FF0000,#cc0000)',          'fab fa-youtube',  ['youtube','yt']],
+                    ['Facebook', 'linear-gradient(135deg,#1877F2,#0A66C2)',          'fab fa-facebook-f',['facebook','fb']],
+                    ['Twitter',  'linear-gradient(135deg,#1DA1F2,#0d8bd9)',          'fab fa-twitter',  ['twitter','x.com']],
+                    ['Telegram', 'linear-gradient(135deg,#0088cc,#005a96)',          'fab fa-telegram', ['telegram']],
+                ];
                 @endphp
-                @if($pendingFundCount > 0)
-                    <span class="bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-4">{{ $pendingFundCount }}</span>
-                @endif
-            </a>
-
-            {{-- ── AI Features ──────────────────────────────────── --}}
-            <div class="mt-3 pt-3 border-t border-white/5">
-                <p class="text-[10px] text-slate-600 uppercase tracking-widest px-4 mb-2 font-label-caps">🤖 AI Features</p>
-
-                <a href="{{ route('admin.ai.services.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.services.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                    <span class="material-symbols-outlined text-[20px]">smart_toy</span> AI Services
-                </a>
-
-                <a href="{{ route('admin.ai.suppliers.health') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.suppliers.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                    <span class="material-symbols-outlined text-[20px]">monitor_heart</span> Supplier Health
-                </a>
-
-                {{-- Low Quality with live count badge --}}
-                <a href="{{ route('admin.ai.quality.low') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.quality.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                    <span class="material-symbols-outlined text-[20px]">warning</span>
-                    <span class="flex-1">Low Quality</span>
-                    @php
-                        try {
-                            $lowQCount = \Illuminate\Support\Facades\Schema::hasColumn('services','quality_score')
-                                ? \App\Models\Service::where('quality_score','<=',3)->count()
-                                : 0;
-                        } catch (\Exception $e) { $lowQCount = 0; }
-                    @endphp
-                    @if($lowQCount > 0)
-                        <span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-4">{{ $lowQCount }}</span>
-                    @endif
-                </a>
-
-                <a href="{{ route('admin.ai.duplicates.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.duplicates.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                    <span class="material-symbols-outlined text-[20px]">content_copy</span> Duplicates
-                </a>
-
-                <a href="{{ route('admin.ai.pricing.index') }}" class="flex items-center gap-4 px-4 py-2.5 rounded-lg {{ request()->routeIs('admin.ai.pricing.*') ? 'bg-purple-500/10 text-purple-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5' }} transition-all hover:translate-x-1">
-                    <span class="material-symbols-outlined text-[20px]">price_change</span> Auto Pricing
-                </a>
+                @foreach($platforms as [$name,$grad,$icon,$keywords])
+                <div class="pf-card" onclick="selectPlatform('{{ $name }}',{{ json_encode($keywords) }},this)">
+                    <div class="pf-icon" style="background:{{ $grad }}"><i class="{{ $icon }}"></i></div>
+                    <span class="pf-name">{{ $name }}</span>
+                </div>
+                @endforeach
             </div>
-            {{-- ── End AI Features ──────────────────────────────── --}}
-
         </div>
-        @endif
-        {{-- ── End Admin Section ────────────────────────────────── --}}
-
     </div>
 
-    {{-- Balance widget --}}
-    <div class="px-4 mt-auto pt-4">
-        <div class="glass-card rounded-xl p-3 mb-3">
-            <p class="text-[10px] text-outline uppercase tracking-widest font-label-caps mb-1">Wallet</p>
-            <p class="text-lg font-bold text-on-surface neon-text-primary">${{ number_format(auth()->user()->funds ?? 0, 2) }}</p>
-            <p class="text-xs text-outline">₨{{ number_format((auth()->user()->funds ?? 0) * session('usd_pkr_rate', 280), 0) }}</p>
-            <a href="{{ route('funds.index') }}" class="mt-2 w-full text-center text-xs bg-gradient-primary text-white py-1.5 rounded-lg block font-semibold hover:brightness-110 transition-all">+ Add Funds</a>
+    {{-- STEP 2: Service Type --}}
+    <div class="step-content" id="step-2">
+        <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-5">
+                <button onclick="goStep(1)" class="text-outline hover:text-white"><span class="material-symbols-outlined">arrow_back</span></button>
+                <h3 class="text-lg font-bold">What do you need for <span id="lbl-platform" class="text-primary"></span>?</h3>
+            </div>
+            <div class="type-grid" id="type-grid">
+                {{-- Dynamic Buttons --}}
+                <div id="type-loading" class="col-span-3 text-center py-6 text-outline">Loading categories...</div>
+            </div>
         </div>
-        <div class="flex items-center gap-3 px-1">
-            <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+    </div>
+
+    {{-- STEP 3: Service Selection --}}
+    <div class="step-content" id="step-3">
+        <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <button onclick="goStep(2)" class="text-outline hover:text-white"><span class="material-symbols-outlined">arrow_back</span></button>
+                <h3 class="text-lg font-bold">Pick a Package</h3>
             </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-on-surface truncate">{{ auth()->user()->name ?? 'User' }}</p>
-                <p class="text-xs text-outline truncate">{{ auth()->user()->email ?? '' }}</p>
+            <div class="max-h-80 overflow-y-auto" id="svc-list">
+                {{-- Dynamic Rows --}}
             </div>
-            <form method="POST" action="{{ route('logout') }}">
+        </div>
+    </div>
+
+    {{-- STEP 4: Order Details --}}
+    <div class="step-content" id="step-4">
+        <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-5">
+                <button onclick="goStep(3)" class="text-outline hover:text-white"><span class="material-symbols-outlined">arrow_back</span></button>
+                <h3 class="text-lg font-bold">Details</h3>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-outline uppercase mb-2">Target URL</label>
+                    <input type="url" id="order-link" class="w-full glass-input py-2" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-outline uppercase mb-2">Quantity</label>
+                    <input type="number" id="qty-num" class="w-full glass-input py-2" oninput="syncSlider()">
+                    <input type="range" id="qty-range" class="w-full mt-4" oninput="syncNum()">
+                </div>
+                <div class="bg-black/20 p-4 rounded-xl">
+                    <div class="flex justify-between mb-1"><span class="text-outline text-sm">Total Price</span><span id="d-usd" class="font-bold text-primary">$0.00</span></div>
+                    <div class="flex justify-between"><span class="text-outline text-sm">In PKR</span><span id="d-pkr" class="font-bold text-tertiary">₨0</span></div>
+                </div>
+                <button onclick="goStep(5)" class="w-full bg-gradient-primary py-3 rounded-xl font-bold">Next Step</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- STEP 5: Confirmation --}}
+    <div class="step-content" id="step-5">
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-bold mb-4 text-center">Confirm Your Order</h3>
+            <div class="space-y-2 mb-6">
+                <div class="flex justify-between text-sm border-b border-white/5 py-2"><span class="text-outline">Service</span><span id="r-service" class="text-right truncate ml-4"></span></div>
+                <div class="flex justify-between text-sm border-b border-white/5 py-2"><span class="text-outline">Quantity</span><span id="r-qty"></span></div>
+                <div class="flex justify-between text-sm border-b border-white/5 py-2"><span class="text-outline">Price</span><span id="r-usd" class="text-primary font-bold"></span></div>
+            </div>
+            <form action="{{ route('orders.store') }}" method="POST" onsubmit="return prepareSubmit()">
                 @csrf
-                <button type="submit" class="text-slate-500 hover:text-red-400 transition-colors p-1" title="Logout">
-                    <span class="material-symbols-outlined text-[18px]">logout</span>
-                </button>
+                <input type="hidden" name="service_id" id="f-service">
+                <input type="hidden" name="link" id="f-link">
+                <input type="hidden" name="quantity" id="f-quantity">
+                <button type="submit" class="w-full bg-tertiary text-black py-4 rounded-xl font-black uppercase tracking-wider">Place Order Now</button>
             </form>
         </div>
     </div>
-</nav>
 
-{{-- Main content --}}
-<main class="flex-1 md:ml-64 relative z-10 flex flex-col min-h-screen">
+</div>
+@endsection
 
-    {{-- Top header --}}
-    <header class="flex justify-between items-center px-6 h-14 w-full sticky top-0 z-40 bg-slate-950/60 backdrop-blur-2xl border-b border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)] transition-all duration-300">
-        <div class="flex items-center gap-4">
-            <button class="md:hidden text-slate-400 hover:text-white" onclick="toggleSidebar()">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
-            <h1 class="text-lg font-semibold text-white font-inter hidden md:block">@yield('page-title','Dashboard')</h1>
-        </div>
-        <div class="flex items-center gap-3">
-            {{-- Live PKR rate --}}
-            <div class="hidden sm:flex items-center gap-1.5 text-xs text-outline bg-surface-container rounded-lg px-3 py-1.5 border border-outline-variant/30">
-                <span class="text-tertiary font-bold">₨</span>{{ number_format(session('usd_pkr_rate', 280), 1) }}/$
-            </div>
-            <a href="{{ route('tickets.index') }}" class="text-slate-400 hover:text-blue-300 transition-colors hover:bg-white/5 p-2 rounded-full">
-                <span class="material-symbols-outlined">notifications</span>
-            </a>
-            <a href="{{ route('funds.index') }}" class="text-slate-400 hover:text-blue-300 transition-colors hover:bg-white/5 p-2 rounded-full">
-                <span class="material-symbols-outlined">account_balance_wallet</span>
-            </a>
-            <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-sm border border-blue-500/30">
-                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
-            </div>
-        </div>
-    </header>
+@section('scripts')
+<script>
+    const PKR = {{ session('usd_pkr_rate', 280) }};
+    const BAL = {{ auth()->user()->funds ?? 0 }};
+    const ALL_CATS = @json($categories);
+    const SVC_URL = '{{ route("orders.services_by_category") }}';
 
-    {{-- Flash messages --}}
-    @if(session('success') || session('error') || $errors->any())
-    <div class="px-6 pt-4">
-        @if(session('success'))
-        <div class="flex items-center gap-3 bg-tertiary/10 border border-tertiary/30 rounded-xl px-4 py-3 text-tertiary text-sm mb-3">
-            <span class="material-symbols-outlined text-[18px]">check_circle</span> {{ session('success') }}
-        </div>
-        @endif
-        @if(session('error'))
-        <div class="flex items-center gap-3 bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-error text-sm mb-3">
-            <span class="material-symbols-outlined text-[18px]">error</span> {{ session('error') }}
-        </div>
-        @endif
-        @if($errors->any())
-        <div class="bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-error text-sm mb-3">
-            @foreach($errors->all() as $e)
-            <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">cancel</span> {{ $e }}</div>
-            @endforeach
-        </div>
-        @endif
-    </div>
-    @endif
+    let selPlatform='', selType='', selSvcId=null, selRate=0, selMin=10, selMax=10000, selName='';
 
-    {{-- Page content --}}
-    <div class="p-6 md:p-gutter flex-1 w-full max-w-container-max mx-auto">
-        @yield('content')
-    </div>
+    const TYPES = [
+        { label:'Followers', icon:'group', kws:['follower','follow'] },
+        { label:'Likes', icon:'favorite', kws:['like','heart'] },
+        { label:'Views', icon:'visibility', kws:['view','watch'] },
+        { label:'Comments', icon:'chat_bubble', kws:['comment'] },
+        { label:'Everything', icon:'apps', kws:[] }
+    ];
 
-    {{-- Footer --}}
-    <footer class="w-full py-6 px-4 flex flex-col items-center gap-3 bg-slate-950 border-t border-white/5 mt-auto z-10">
-        <div class="flex gap-4 font-inter text-xs text-slate-600">
-            <a class="hover:text-white transition-colors" href="#">Terms</a>
-            <a class="hover:text-white transition-colors" href="#">Privacy</a>
-            <a class="hover:text-white transition-colors" href="#">Status</a>
-            <a class="hover:text-white transition-colors" href="{{ route('tickets.create') }}">Support</a>
-        </div>
-        <p class="text-xs font-inter text-slate-600">© {{ date('Y') }} {{ config('app.name','SMM Elite') }}. All rights reserved.</p>
-    </footer>
-</main>
+    function goStep(n) {
+        document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-'+n).classList.add('active');
+        document.querySelectorAll('.step-circle').forEach((c, i) => {
+            c.className = 'step-circle ' + (i+1 === n ? 'active' : (i+1 < n ? 'done' : ''));
+        });
+        window.scrollTo(0,0);
+    }
 
-{{-- Mobile bottom nav --}}
-<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center h-16 px-4 md:hidden bg-slate-900/90 backdrop-blur-lg border-t border-blue-500/30 rounded-t-2xl shadow-[0_-5px_20px_rgba(59,130,246,0.2)]">
-    <a href="{{ route('d
+    function selectPlatform(name, keywords, el) {
+        selPlatform = name;
+        document.getElementById('lbl-platform').textContent = name;
+        
+        const grid = document.getElementById('type-grid');
+        grid.innerHTML = '';
+        
+        // Filter categories that belong to this platform
+        const platformCats = ALL_CATS.filter(c => 
+            [name, ...keywords].some(k => c.name.toLowerCase().includes(k.toLowerCase()))
+        );
+
+        const catsToUse = platformCats.length > 0 ? platformCats : ALL_CATS;
+
+        TYPES.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = 'type-btn';
+            btn.innerHTML = `<span class="material-symbols-outlined">${t.icon}</span><span class="text-[10px] font-bold">${t.label}</span>`;
+            btn.onclick = () => selectType(t, catsToUse);
+            grid.appendChild(btn);
+        });
+        goStep(2);
+    }
+
+    function selectType(type, cats) {
+        selType = type.label;
+        const filteredCats = type.label === 'Everything' ? cats : cats.filter(c => 
+            type.kws.some(k => c.name.toLowerCase().includes(k))
+        );
+        loadServices(filteredCats);
+    }
+
+    function loadServices(cats) {
+        const list = document.getElementById('svc-list');
+        list.innerHTML = '<div class="text-center py-10">Loading...</div>';
+        goStep(3);
+
+        const promises = cats.map(c => fetch(`${SVC_URL}?category_id=${c.id}`).then(r => r.json()));
+        
+        Promise.all(promises).then(data => {
+            list.innerHTML = '';
+            data.flat().forEach(svc => {
+                const row = document.createElement('button');
+                row.className = 'svc-row';
+                row.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm font-medium truncate pr-4">${svc.name}</div>
+                        <div class="text-primary font-bold text-xs">$${parseFloat(svc.rate).toFixed(4)}</div>
+                    </div>`;
+                row.onclick = () => {
+                    selSvcId = svc.id; selRate = svc.rate; selMin = svc.min; selMax = svc.max; selName = svc.name;
+                    document.getElementById('qty-num').value = svc.min;
+                    document.getElementById('qty-range').min = svc.min;
+                    document.getElementById('qty-range').max = svc.max;
+                    document.getElementById('qty-range').value = svc.min;
+                    calc(); goStep(4);
+                };
+                list.appendChild(row);
+            });
+        });
+    }
+
+    function syncNum() { document.getElementById('qty-num').value = document.getElementById('qty-range').value; calc(); }
+    function syncSlider() { document.getElementById('qty-range').value = document.getElementById('qty-num').value; calc(); }
+
+    function calc() {
+        const qty = parseInt(document.getElementById('qty-num').value) || 0;
+        const total = (qty / 1000) * selRate;
+        document.getElementById('d-usd').textContent = '$' + total.toFixed(4);
+        document.getElementById('d-pkr').textContent = '₨' + Math.round(total * PKR).toLocaleString();
+        
+        // Populate Step 5 Review
+        document.getElementById('r-service').textContent = selName;
+        document.getElementById('r-qty').textContent = qty.toLocaleString();
+        document.getElementById('r-usd').textContent = '$' + total.toFixed(4);
+    }
+
+    function prepareSubmit() {
+        document.getElementById('f-service').value = selSvcId;
+        document.getElementById('f-link').value = document.getElementById('order-link').value;
+        document.getElementById('f-quantity').value = document.getElementById('qty-num').value;
+        return true;
+    }
+</script>
+@endsection
