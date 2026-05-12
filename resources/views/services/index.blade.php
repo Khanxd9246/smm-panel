@@ -95,7 +95,7 @@
                 @endphp
                 @foreach($filters as $val=>$label)
                 <a href="{{ request()->fullUrlWithQuery(['filter'=>$val,'page'=>null]) }}"
-                   class="btn btn-outline-secondary filter-pill {{ request('filter','')====$val?'active':'' }}">{{ $label }}</a>
+                   class="btn btn-outline-secondary filter-pill {{ request('filter','')===$val?'active':'' }}">{{ $label }}</a>
                 @endforeach
             </div>
 
