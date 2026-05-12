@@ -4,26 +4,28 @@
 @push('styles')
 <style>
 /* ── Layout ── */
-.service-card{border:none;border-radius:14px;transition:all .2s}
-.service-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.15)!important}
+.service-card{border:none;border-radius:14px;transition:all .25s cubic-bezier(.4,0,.2,1)}
+.service-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 12px 36px rgba(79,142,247,.15)!important}
 .delivery-badge{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:12px}
 .tag-chip{display:inline-block;font-size:.64rem;padding:1px 7px;border-radius:10px;margin:1px;background:#f1f5f9;color:#475569}
 .quality-bar{height:5px;border-radius:3px;background:#e2e8f0;overflow:hidden}
 .quality-fill{height:100%;border-radius:3px}
 
-/* ── Filter pills ── */
-.filter-pill{border-radius:20px;font-size:.8rem;padding:4px 14px;transition:all .15s}
-.filter-pill.active{background:#6366f1;color:white;border-color:#6366f1}
+/* ── Filter pills with animation ── */
+.filter-pill{border-radius:20px;font-size:.8rem;padding:4px 14px;transition:all .2s cubic-bezier(.4,0,.2,1)}
+.filter-pill:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(99,102,241,.2)}
+.filter-pill.active{background:#6366f1;color:white;border-color:#6366f1;transform:scale(1.05)}
 
 /* ── Sort tabs ── */
-.sort-pill{border-radius:20px;font-size:.78rem;padding:4px 12px;border:1px solid #dee2e6;cursor:pointer;transition:all .15s;background:white;color:#6c757d;white-space:nowrap}
-.sort-pill.active{background:#6366f1;color:white;border-color:#6366f1}
-.sort-pill:hover:not(.active){background:#f3f4f6;border-color:#aaa}
+.sort-pill{border-radius:20px;font-size:.78rem;padding:4px 12px;border:1px solid #dee2e6;cursor:pointer;transition:all .2s;background:white;color:#6c757d;white-space:nowrap}
+.sort-pill.active{background:#6366f1;color:white;border-color:#6366f1;transform:scale(1.02)}
+.sort-pill:hover:not(.active){background:#f3f4f6;border-color:#aaa;transform:translateY(-1px)}
 
 /* ── Price range filter ── */
 .price-filter-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.pf-chip{font-size:.72rem;padding:3px 10px;border-radius:12px;border:1px solid #dee2e6;cursor:pointer;background:white;color:#6c757d;transition:all .15s}
-.pf-chip.active{background:#10b981;color:white;border-color:#10b981}
+.pf-chip{font-size:.72rem;padding:3px 10px;border-radius:12px;border:1px solid #dee2e6;cursor:pointer;background:white;color:#6c757d;transition:all .2s}
+.pf-chip:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(16,185,129,.15)}
+.pf-chip.active{background:#10b981;color:white;border-color:#10b981;transform:scale(1.02)}
 
 /* ── ID search ── */
 .id-search-box{background:linear-gradient(135deg,#fef9c3,#fefce8);border:1.5px solid #fde047;border-radius:12px;padding:10px 14px}
@@ -32,29 +34,37 @@
 .id-notfound{background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:6px 12px;margin-top:6px;font-size:.75rem;color:#991b1b;display:none}
 
 /* ── View toggle ── */
-.view-toggle .btn{padding:4px 10px}
-.view-toggle .btn.active{background:#6366f1;color:white;border-color:#6366f1}
+.view-toggle .btn{padding:4px 10px;transition:all .2s}
+.view-toggle .btn:hover{transform:scale(1.1)}
+.view-toggle .btn.active{background:#6366f1;color:white;border-color:#6366f1;transform:scale(1.05)}
 
 /* ── List view ── */
-.service-list-row{border-radius:10px;border:1px solid #e5e7eb;transition:all .15s;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;background:white}
-.service-list-row:hover{border-color:#6366f1;box-shadow:0 2px 8px rgba(99,102,241,.1)}
+.service-list-row{border-radius:10px;border:1px solid #e5e7eb;transition:all .25s cubic-bezier(.4,0,.2,1);padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;background:white}
+.service-list-row:hover{border-color:#6366f1;box-shadow:0 4px 16px rgba(99,102,241,.15);transform:translateX(4px)}
 
 /* ── Highlight ── */
 .service-card.id-highlight,.service-list-row.id-highlight{box-shadow:0 0 0 3px #fde047,0 4px 16px rgba(250,204,21,.3)!important;border-color:#fde047!important}
 
 /* ── Compare floater ── */
 .compare-float{position:fixed;bottom:20px;right:20px;z-index:999;background:#1e1b4b;border:1px solid rgba(173,198,255,.3);border-radius:16px;padding:12px 16px;color:white;box-shadow:0 8px 32px rgba(0,0,0,.3);display:none;min-width:200px;backdrop-filter:blur(8px)}
-.compare-float.visible{display:block}
+.compare-float.visible{display:block;animation:slideInUp .3s ease}
 .compare-float-chip{font-size:.7rem;background:rgba(255,255,255,.1);border-radius:6px;padding:2px 8px;margin:2px;display:inline-flex;align-items:center;gap:4px}
 .compare-float-chip button{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;padding:0;font-size:12px;line-height:1}
+
+@keyframes slideInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── Compare modal ── */
 #compare-modal-overlay{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px)}
 #compare-modal-box{background:white;border-radius:16px;max-width:700px;margin:40px auto;padding:24px;max-height:85vh;overflow-y:auto}
 
-/* Fade-in cards */
-@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.service-card-wrap{animation:cardIn .2s ease both}
+/* Fade-in cards with stagger */
+.service-card-wrap{opacity:0;transform:translateY(15px)}
+.service-card-wrap.loaded{animation:cardIn .4s ease forwards}
+@keyframes cardIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Quick finder animation ── */
+.id-search-box{transition:all .3s}
+.id-search-box:focus-within{box-shadow:0 0 0 3px rgba(253,224,71,.3)}
 </style>
 @endpush
 
@@ -62,7 +72,7 @@
 <div class="container py-4">
 
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <h2 class="fw-bold mb-0">📦 Our Services</h2>
+        <h2 class="fw-bold mb-0" style="animation:fadeUp .4s ease">📦 Our Services</h2>
         <div class="d-flex align-items-center gap-2">
             <small class="text-muted">{{ $services->total() }} services</small>
             {{-- View toggle --}}
@@ -74,7 +84,7 @@
     </div>
 
     {{-- ── ID Quick Finder ──────────────────────────────────────────────── --}}
-    <div class="id-search-box mb-3">
+    <div class="id-search-box mb-3 fade-up" style="animation-delay:.1s">
         <label>⚡ Find by Provider Service ID</label>
         <div class="input-group mt-1" style="max-width:360px">
             <input type="number" id="id-finder-input" class="form-control form-control-sm" placeholder="Enter service ID e.g. 1042" oninput="idFinder(this.value)">
@@ -85,7 +95,7 @@
     </div>
 
     {{-- ── Main filter card ──────────────────────────────────────────────── --}}
-    <div class="card shadow-sm mb-3 border-0">
+    <div class="card shadow-sm mb-3 border-0 fade-up" style="animation-delay:.15s">
         <div class="card-body p-3">
 
             {{-- Quick filter pills --}}
@@ -150,7 +160,7 @@
 
     {{-- ── Results ──────────────────────────────────────────────────────── --}}
     @if($services->isEmpty())
-    <div class="text-center py-5 text-muted">
+    <div class="text-center py-5 text-muted fade-up">
         <div class="fs-1">🔍</div>
         <h5>No services found</h5>
         <a href="{{ route('services.index') }}" class="btn btn-outline-primary btn-sm mt-2">Clear Filters</a>
@@ -161,7 +171,8 @@
     <div id="view-grid">
         <div class="row g-3" id="services-grid">
             @foreach($services as $i=>$service)
-            <div class="col-md-6 col-xl-4 service-card-wrap" style="animation-delay:{{ $i*0.03 }}s"
+            <div class="col-md-6 col-xl-4 service-card-wrap"
+                 style="animation-delay:{{ $i * 0.04 }}s"
                  data-svcid="{{ $service->id }}"
                  data-providerid="{{ $service->api_service_id }}"
                  data-name="{{ strtolower($service->name) }}">
@@ -206,14 +217,12 @@
                             @endif
                         </div>
 
-                        @if($service->estimated_start||$service->estimated_completion)
+                        @if($service->delivery_time_preview)
                         <div class="bg-light rounded p-2 mb-3 small">
-                            @if($service->estimated_start)
-                            <div class="d-flex justify-content-between"><span class="text-muted">⏱ Start:</span><strong>{{ $service->estimated_start }}</strong></div>
-                            @endif
-                            @if($service->estimated_completion)
-                            <div class="d-flex justify-content-between mt-1"><span class="text-muted">✅ Done:</span><strong>{{ $service->estimated_completion }}</strong></div>
-                            @endif
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">⏱ Delivery:</span>
+                                <strong>{{ $service->delivery_time_preview }}</strong>
+                            </div>
                         </div>
                         @endif
 
@@ -253,8 +262,8 @@
                             </div>
                             <div class="d-flex gap-2">
                                 <a href="{{ route('orders.create',['service_id'=>$service->id]) }}" class="btn btn-primary btn-sm flex-grow-1">Order Now →</a>
-                                <button class="btn btn-outline-secondary btn-sm compare-add-btn" 
-                                    data-id="{{ $service->id }}" 
+                                <button class="btn btn-outline-secondary btn-sm compare-add-btn"
+                                    data-id="{{ $service->id }}"
                                     data-name="{{ $service->name }}"
                                     data-rate="{{ $service->rate }}"
                                     data-min="{{ $service->min }}"
@@ -277,8 +286,9 @@
 
     {{-- LIST VIEW --}}
     <div id="view-list" style="display:none">
-        @foreach($services as $service)
-        <div class="service-list-row" id="svc-list-{{ $service->id }}"
+        @foreach($services as $i=>$service)
+        <div class="service-list-row" style="animation-delay:{{ $i * 0.03 }}s"
+             id="svc-list-{{ $service->id }}"
              data-svcid="{{ $service->id }}"
              data-providerid="{{ $service->api_service_id }}">
             <div class="flex-grow-1">
@@ -350,6 +360,22 @@
 
 @push('scripts')
 <script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Animate service cards on load
+  setTimeout(function(){
+    document.querySelectorAll('.service-card-wrap').forEach(function(el){
+      el.classList.add('loaded');
+    });
+    // GSAP stagger animation if available
+    if(typeof gsap!=='undefined'){
+      gsap.fromTo('.service-card-wrap',
+        {opacity:0,y:20},
+        {opacity:1,y:0,duration:0.5,stagger:0.05,ease:'power2.out'}
+      );
+    }
+  },100);
+});
+
 // ── View toggle ────────────────────────────────────────────────────────────
 function setView(v,el){
     document.getElementById('view-grid').style.display=v==='grid'?'':'none';
@@ -370,7 +396,8 @@ function setView(v,el){
 })();
 
 // ── ID Finder ──────────────────────────────────────────────────────────────
-const allServiceData = @json($services->items()->map(fn($s)=>['id'=>$s->id,'api_service_id'=>$s->api_service_id,'name'=>$s->name,'rate'=>$s->rate]));
+<?php $serviceData = collect($services->items())->map(function($s) { return ['id'=>$s->id,'api_service_id'=>$s->api_service_id,'name'=>$s->name,'rate'=>$s->rate]; })->all(); ?>
+const allServiceData = <?php echo json_encode($serviceData); ?>;
 
 function idFinder(val){
     const foundEl=document.getElementById('id-found-card');
