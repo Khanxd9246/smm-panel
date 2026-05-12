@@ -11,41 +11,58 @@ use Illuminate\Http\Request;
  * ─────────────────────────────────────────────────────────────────────────────
  * Centralises all service-listing query logic so both ServiceController and
  * future API endpoints share identical behaviour without duplicate code.
+ *
+ * Supported query params:
+ *   platform   – e.g. instagram | tiktok | youtube
+ *   type       – e.g. followers | likes | views
+ *   search / q – name search string
+ *   sort       – price (default) | price_high | quality | speed | popularity | name
+ *   filter     – instant | fast | refill | premium | high_quality | best_seller
+ *   category   – category id
+ *   max_rate   – maximum rate filter (e.g. 0.5, 1, 2)
+ *   page       – pagination (handled by Laravel)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 class ServiceFilter
 {
-    private const PER_PAGE    = 20;
-    private const SORT_VALUES = ['price', 'name'];
+    private const PER_PAGE    = 24;
+    private const SORT_VALUES = ['price', 'price_high', 'name', 'quality', 'speed', 'popularity'];
 
-    /**
-     * Build a paginated, filtered, sorted service list from query-string params.
-     *
-     * Supported params:
-     *   platform  – e.g. instagram | tiktok | youtube
-     *   type      – e.g. followers | likes | views
-     *   q         – name search string
-     *   sort      – price (default) | name
-     *   page      – pagination (handled by Laravel)
-     *
-     * No N+1: category is eager-loaded once.
-     */
     public function paginate(Request $request): LengthAwarePaginator
     {
         $platform = $request->input('platform');
         $type     = $request->input('type');
-        $search   = $request->input('q');
-        $sort     = in_array($request->input('sort'), self::SORT_VALUES, true)
-                    ? $request->input('sort')
-                    : 'price';
+        $search   = $request->input('search') ?? $request->input('q');
+        $filter   = $request->input('filter');
+        $category = $request->input('category');
+        $maxRate  = $request->input('max_rate');
 
-        return Service::with('category')           // eager-load, no N+1
+        $sort = in_array($request->input('sort'), self::SORT_VALUES, true)
+                ? $request->input('sort')
+                : 'price';
+
+        $query = Service::with('category')
             ->active()
             ->forPlatform($platform)
             ->ofType($type)
             ->search($search)
-            ->sorted($sort)
-            ->paginate(self::PER_PAGE)
-            ->withQueryString();                    // preserve filters in page links
+            ->sorted($sort);
+
+        // Category filter
+        if ($category) {
+            $query->where('category_id', $category);
+        }
+
+        // Quality/badge filter
+        if ($filter) {
+            $query->byQuality($filter);
+        }
+
+        // Max rate filter
+        if ($maxRate && is_numeric($maxRate)) {
+            $query->where('rate', '<=', (float) $maxRate);
+        }
+
+        return $query->paginate(self::PER_PAGE)->withQueryString();
     }
 }
