@@ -4,11 +4,11 @@
 
 @section('css')
 <style>
-.status-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid var(--c-border);color:var(--c-muted);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
-.status-pill:hover{border-color:var(--c-primary);color:var(--c-primary-l)}
-.status-pill.on{background:rgba(79,142,247,.12);border-color:rgba(79,142,247,.4);color:var(--c-primary-l)}
-.tr-row{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s;cursor:pointer}
-.tr-row:hover{background:rgba(255,255,255,.025)}
+.status-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid var(--c-border);color:var(--c-muted);background:transparent;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);white-space:nowrap;position:relative}
+.status-pill:hover{border-color:var(--c-primary);color:var(--c-primary-l);transform:translateY(-1px)}
+.status-pill.on{background:rgba(79,142,247,.12);border-color:rgba(79,142,247,.4);color:var(--c-primary-l);transform:scale(1.02)}
+.tr-row{border-bottom:1px solid rgba(255,255,255,.04);transition:all .2s cubic-bezier(.4,0,.2,1);cursor:pointer;position:relative}
+.tr-row:hover{background:rgba(79,142,247,.06);transform:translateX(4px)}
 .tr-row:last-child{border-bottom:none}
 @keyframes pulseRing{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:.3;transform:scale(1.5)}}
 .pulse-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
@@ -17,6 +17,13 @@
 .pending-dot{background:var(--c-warn)}
 .cancelled-dot{background:var(--c-danger)}
 .partial-dot{background:var(--c-purple)}
+
+/* row animation on load */
+.order-row{opacity:0;transform:translateX(-10px)}
+.order-row.loaded{opacity:1;transform:translateX(0);transition:all .3s ease}
+
+/* search glow */
+#o-search:focus{box-shadow:0 0 0 3px rgba(79,142,247,.15)}
 </style>
 @endsection
 
@@ -76,7 +83,8 @@
         <tr class="tr-row order-row"
             data-status="{{ $s }}"
             data-q="{{ strtolower($order->service->name??'') }} #{{ $order->id }}"
-            onclick="window.location='{{ route('orders.show',$order->id) }}'">
+            onclick="window.location='{{ route('orders.show',$order->id) }}'"
+            style="transition-delay: {{ $loop->index * 30 }}ms">
           <td style="padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c-muted)">#{{ $order->id }}</td>
           <td style="padding:14px;max-width:180px">
             <p style="font-weight:600;color:var(--c-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">{{ $order->service->name ?? 'N/A' }}</p>
@@ -84,7 +92,7 @@
           <td style="padding:14px;max-width:120px">
             <a href="{{ $order->link }}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
                style="font-size:11.5px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:block;text-decoration:none"
-               title="{{ $order->link }}">{{ Str::limit($order->link,30) }}</a>
+               title="{{ $order->link }}">{{ substr($order->link, 0, 30) }}</a>
           </td>
           <td style="padding:14px;text-align:right;color:var(--c-text);font-weight:600">{{ number_format($order->quantity) }}</td>
           <td style="padding:14px;text-align:right;color:var(--c-muted)">{{ number_format($order->remains??0) }}</td>
@@ -133,16 +141,38 @@
 
 @section('scripts')
 <script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Staggered row animation
+  if(typeof gsap!=='undefined'){
+    gsap.to('.order-row',{
+      opacity:1,
+      x:0,
+      duration:0.4,
+      stagger:0.05,
+      ease:'power2.out',
+      delay:0.2
+    });
+  } else {
+    document.querySelectorAll('.order-row').forEach(function(el){
+      el.classList.add('loaded');
+    });
+  }
+});
+
 function filterStatus(s,el){
-  document.querySelectorAll('.status-pill').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.status-pill').forEach(function(b){b.classList.remove('on');});
   el.classList.add('on');
-  document.querySelectorAll('.order-row').forEach(r=>{
-    r.style.display=(s==='all'||r.dataset.status===s)?'':'none';
+  document.querySelectorAll('.order-row').forEach(function(r){
+    var shouldShow=(s==='all'||r.dataset.status===s);
+    r.style.display=shouldShow?'':'none';
+    if(shouldShow && typeof gsap!=='undefined'){
+      gsap.fromTo(r,{opacity:0,y:10},{opacity:1,y:0,duration:0.3,ease:'power2.out'});
+    }
   });
 }
 function searchOrders(){
-  const q=document.getElementById('o-search').value.toLowerCase();
-  document.querySelectorAll('.order-row').forEach(r=>{
+  var q=document.getElementById('o-search').value.toLowerCase();
+  document.querySelectorAll('.order-row').forEach(function(r){
     r.style.display=r.dataset.q.includes(q)?'':'none';
   });
 }
