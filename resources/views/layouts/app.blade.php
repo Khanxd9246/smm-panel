@@ -50,7 +50,23 @@ tailwind.config={
   --c-purple:#a78bfa;
   --sidebar-w:248px;
 }
-body{margin:0;background:var(--c-base);color:var(--c-text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* Light mode colors */
+:root.light-mode{
+  --c-base:#f8fafc;
+  --c-surface:#f1f5f9;
+  --c-card:#ffffff;
+  --c-border:#e2e8f0;
+  --c-muted:#64748b;
+  --c-text:#1e293b;
+  --c-primary:#4f8ef7;
+  --c-primary-l:#3d7de8;
+  --c-accent:#38d9a9;
+  --c-warn:#f7c948;
+  --c-danger:#f76f6f;
+  --c-purple:#a78bfa;
+}
+body{margin:0;background:var(--c-base);color:var(--c-text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .3s ease,color .3s ease}
 
 /* Subtle grid background */
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -68,7 +84,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   border-right:1px solid var(--c-border);
   backdrop-filter:blur(20px);
   display:flex;flex-direction:column;z-index:100;
-  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  transition:transform .28s cubic-bezier(.4,0,.2,1),background .3s ease,border-color .3s ease;
 }
 #sidebar.collapsed{transform:translateX(-100%)}
 
@@ -102,11 +118,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   height:58px;display:flex;align-items:center;justify-content:space-between;
   padding:0 24px;background:rgba(6,13,26,.8);backdrop-filter:blur(20px);
   border-bottom:1px solid var(--c-border);position:sticky;top:0;z-index:50;
+  transition:background .3s ease,border-color .3s ease;
 }
 
 /* Cards */
-.card{background:var(--c-card);border:1px solid var(--c-border);border-radius:14px}
-.card-sm{background:var(--c-card);border:1px solid var(--c-border);border-radius:10px}
+.card{background:var(--c-card);border:1px solid var(--c-border);border-radius:14px;transition:background .3s ease,border-color .3s ease}
+.card-sm{background:var(--c-card);border:1px solid var(--c-border);border-radius:10px;transition:background .3s ease,border-color .3s ease}
 
 /* Buttons */
 .btn-primary{
@@ -313,6 +330,9 @@ select.inp{appearance:none;cursor:pointer}
       <div style="font-size:12px;color:var(--c-muted);background:rgba(255,255,255,.04);border:1px solid var(--c-border);padding:5px 12px;border-radius:8px;font-family:'JetBrains Mono',monospace">
         ₨{{ number_format(session('usd_pkr_rate', 280), 1) }}/$
       </div>
+      <button onclick="toggleTheme()" title="Toggle dark/light mode" style="width:34px;height:34px;border-radius:9px;border:1px solid var(--c-border);background:rgba(255,255,255,.03);display:flex;align-items:center;justify-content:center;color:var(--c-muted);text-decoration:none;transition:all .15s;cursor:pointer;padding:0" onmouseover="this.style.borderColor='var(--c-primary)';this.style.color='var(--c-primary-l)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">
+        <span class="material-symbols-outlined" id="theme-icon" style="font-size:18px">light_mode</span>
+      </button>
       <a href="{{ route('tickets.index') }}" style="width:34px;height:34px;border-radius:9px;border:1px solid var(--c-border);background:rgba(255,255,255,.03);display:flex;align-items:center;justify-content:center;color:var(--c-muted);text-decoration:none;transition:all .15s" onmouseover="this.style.borderColor='var(--c-primary)';this.style.color='var(--c-primary-l)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">
         <span class="material-symbols-outlined" style="font-size:18px">notifications</span>
       </a>
@@ -401,6 +421,36 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('overlay').style.display='none';
 }
+function toggleTheme(){
+  const html=document.documentElement;
+  const isDark=html.classList.contains('light-mode');
+  const icon=document.getElementById('theme-icon');
+  
+  if(isDark){
+    html.classList.remove('light-mode');
+    localStorage.setItem('theme','dark');
+    icon.textContent='light_mode';
+  } else {
+    html.classList.add('light-mode');
+    localStorage.setItem('theme','light');
+    icon.textContent='dark_mode';
+  }
+}
+function initTheme(){
+  const html=document.documentElement;
+  const saved=localStorage.getItem('theme');
+  const icon=document.getElementById('theme-icon');
+  const preference=saved || (window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');
+  
+  if(preference==='light'){
+    html.classList.add('light-mode');
+    icon.textContent='dark_mode';
+  } else {
+    html.classList.remove('light-mode');
+    icon.textContent='light_mode';
+  }
+}
+initTheme();
 function showToast(msg,type='info'){
   const colors={success:'var(--c-accent)',danger:'var(--c-danger)',info:'var(--c-primary-l)',warning:'var(--c-warn)'};
   const icons={success:'check_circle',danger:'cancel',info:'info',warning:'warning'};
