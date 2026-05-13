@@ -121,10 +121,22 @@ class Service extends Model
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
         if (blank($term)) return $query;
-        // Extended: multi-word fuzzy matching
+
+        $term = trim($term);
+
+        // Numeric-only: exact match on our DB id OR provider api_service_id
+        if (ctype_digit($term)) {
+            return $query->where(function ($q) use ($term) {
+                $q->where('id', (int) $term)
+                  ->orWhere('api_service_id', $term);
+            });
+        }
+
+        // Text search: name + api_service_id partial
         $words = array_filter(explode(' ', $term), fn ($w) => strlen($w) > 2);
         return $query->where(function ($q) use ($term, $words) {
-            $q->where('name', 'like', '%' . $term . '%');
+            $q->where('name', 'like', '%' . $term . '%')
+              ->orWhere('api_service_id', 'like', '%' . $term . '%');
             foreach ($words as $word) {
                 $q->orWhere('name', 'like', '%' . $word . '%');
             }
