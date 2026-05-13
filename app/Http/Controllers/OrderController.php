@@ -40,9 +40,16 @@ class OrderController extends Controller
 
     public function create()
     {
-        $categories = Category::where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name', 'icon', 'color']);
+        $categories = Cache::remember('active_categories_visible', 300, fn () =>
+            Category::where('status', 'active')
+                ->whereHas('services', fn ($q) => $q
+                    ->where('status', 'active')
+                    ->where('admin_visible', true)
+                )
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'icon', 'color'])
+        );
 
         return view('orders.create', compact('categories'));
     }

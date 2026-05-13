@@ -26,8 +26,13 @@ class ServiceController extends Controller
         // We only cache the full list used to build dropdowns.
         // The filtered service list is NOT cached because it is user-specific
         // (search terms, sort prefs) and changes frequently.
-        $categories = Cache::remember('active_categories', 600, fn () =>
+        // Only show categories that have at least one admin-visible, active service
+        $categories = Cache::remember('active_categories_visible', 300, fn () =>
             Category::active()
+                ->whereHas('services', fn ($q) => $q
+                    ->where('status', 'active')
+                    ->where('admin_visible', true)
+                )
                 ->select('id', 'name', 'platform', 'type')
                 ->orderBy('platform')
                 ->orderBy('type')

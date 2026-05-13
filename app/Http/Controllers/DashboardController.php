@@ -47,9 +47,16 @@ class DashboardController extends Controller
             ->take(8)
             ->get(['id', 'service_id', 'status', 'total', 'quantity', 'created_at']);
 
-        // Categories cached — used for quick-order widget on dashboard
-        $categories = Cache::remember('active_categories', 600, fn () =>
-            Category::where('status', 'active')->get(['id', 'name', 'icon', 'color'])
+        // Categories cached — only those with at least one admin-visible service
+        $categories = Cache::remember('active_categories_visible', 300, fn () =>
+            Category::where('status', 'active')
+                ->whereHas('services', fn ($q) => $q
+                    ->where('status', 'active')
+                    ->where('admin_visible', true)
+                )
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'icon', 'color'])
         );
 
         // DO NOT pass services here — 5,655 services in @json kills page load.
