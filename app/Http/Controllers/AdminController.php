@@ -428,9 +428,8 @@ class AdminController extends Controller
         if ($vis    = $request->get('visible'))     $query->where('admin_visible', $vis === '1');
         if ($search = $request->get('q'))           $query->search($search);
         if ($speed  = $request->get('speed'))       $query->where('delivery_speed', $speed);
-        if ($apiId  = $request->get('api_id')) {
-            $apiId = trim($apiId);
-            $query->whereRaw("api_service_id::text = ?", [$apiId]);
+        if ($apiId = $request->get('api_id')) {
+            $query->where('api_service_id', (int) trim($apiId));
         }
 
         $sortBy  = in_array($request->get('sort_by'), ['name','rate','admin_price','sort_order','orders_count'], true)
