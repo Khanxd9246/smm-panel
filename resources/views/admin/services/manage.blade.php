@@ -97,7 +97,8 @@
 
 {{-- Filter bar --}}
 <form method="GET" action="{{ route('admin.services.manage') }}" class="filter-bar" id="filterForm">
-  <input type="text" name="q" value="{{ request('q') }}" placeholder="Search services…" class="inp" style="width:220px;padding:7px 12px">
+  <input type="text" name="q" value="{{ request('q') }}" placeholder="Search services…" class="inp" style="width:180px;padding:7px 12px">
+  <input type="text" name="api_id" value="{{ request('api_id') }}" placeholder="Provider Service ID" class="inp" style="width:150px;padding:7px 12px" title="Search by provider's service ID">
   <select name="category_id" class="inp" style="width:160px;padding:7px 12px" onchange="this.form.submit()">
     <option value="">All Categories</option>
     @foreach($categories as $cat)
