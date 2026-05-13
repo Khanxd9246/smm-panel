@@ -453,12 +453,15 @@ class AdminController extends Controller
     {
         $visible = $request->boolean('visible');
         $service->update(['admin_visible' => $visible]);
+        // Bust caches so category lists update immediately for all users
+        \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
+        \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
         $this->auditLog('service_visibility', 'Service', $service->id, ['admin_visible' => $visible]);
 
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'admin_visible' => $visible]);
         }
-        return back()->with('success', "Service " . ($visible ? 'shown to' : 'hidden from') . " users.");
+        return back()->with('success', 'Service ' . ($visible ? 'shown to' : 'hidden from') . ' users.');
     }
 
     /**
@@ -481,10 +484,12 @@ class AdminController extends Controller
             'visible' => $request->boolean('visible'),
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
+
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'updated' => $count]);
         }
-        return back()->with('success', "{$count} service(s) updated.");
+        return back()->with('success', $count . ' service(s) updated.');
     }
 
     /**
@@ -515,7 +520,9 @@ class AdminController extends Controller
         $service->update($validated);
 
         // Bust the category services cache so the new data is served immediately
+        // Bust per-category services cache AND the visible-categories list cache
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
+        \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
 
         $this->auditLog('admin_update_service', 'Service', $service->id, $validated);
 
