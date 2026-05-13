@@ -389,17 +389,21 @@ class AdminController extends Controller
 
     public function servicesIndex(Request $request)
     {
-        $query = Service::with('apiProvider:id,name');
+        $query = Service::with(['apiProvider:id,name', 'category:id,name']);
 
-        if ($tier   = $request->get('tier'))   $query->where('tier', $tier);
-        if ($status = $request->get('status')) $query->where('status', $status);
+        if ($tier       = $request->get('tier'))        $query->where('tier', $tier);
+        if ($status     = $request->get('status'))      $query->where('status', $status);
+        if ($categoryId = $request->get('category_id')) $query->where('category_id', $categoryId);
+        if ($search     = $request->get('q'))           $query->search($search);
 
-        $sortBy  = in_array($request->get('sort_by'), ['name', 'rate', 'min_time', 'created_at'], true)
+        $sortBy  = in_array($request->get('sort_by'), ['name', 'rate', 'min_time', 'created_at', 'sort_order'], true)
                    ? $request->get('sort_by') : 'name';
         $sortDir = $request->get('sort_direction', 'asc');
 
-        $services = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
-        return view('admin.services.index', compact('services'));
+        $services   = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
+        $categories = \App\Models\Category::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.services.index', compact('services', 'categories'));
     }
 
     public function servicesToggle(Service $service)
@@ -408,6 +412,117 @@ class AdminController extends Controller
         $service->update(['status' => $newStatus]);
         $this->auditLog('toggle_service', 'Service', $service->id, ['status' => $newStatus]);
         return back()->with('success', 'Service status updated.');
+    }
+
+    // ── Phase 3: Admin service management ────────────────────────────────────
+
+    /**
+     * GET admin/services/manage
+     * Full management table: all services with visibility toggles, price overrides, delivery labels.
+     */
+    public function servicesManage(Request $request)
+    {
+        $query = Service::with(['apiProvider:id,name', 'category:id,name']);
+
+        if ($cat    = $request->get('category_id')) $query->where('category_id', $cat);
+        if ($vis    = $request->get('visible'))     $query->where('admin_visible', $vis === '1');
+        if ($search = $request->get('q'))           $query->search($search);
+        if ($speed  = $request->get('speed'))       $query->where('delivery_speed', $speed);
+
+        $sortBy  = in_array($request->get('sort_by'), ['name','rate','admin_price','sort_order','orders_count'], true)
+                   ? $request->get('sort_by') : 'sort_order';
+        $sortDir = $request->get('sort_dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+        $services   = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
+        $categories = \App\Models\Category::orderBy('name')->get(['id','name']);
+        $stats = [
+            'total'   => Service::count(),
+            'visible' => Service::where('admin_visible', true)->count(),
+            'hidden'  => Service::where('admin_visible', false)->count(),
+            'custom_price' => Service::whereNotNull('admin_price')->where('admin_price', '>', 0)->count(),
+        ];
+
+        return view('admin.services.manage', compact('services', 'categories', 'stats'));
+    }
+
+    /**
+     * POST admin/services/{service}/visibility
+     * Toggle a single service's admin_visible flag (AJAX-friendly).
+     */
+    public function servicesVisibility(Request $request, Service $service)
+    {
+        $visible = $request->boolean('visible');
+        $service->update(['admin_visible' => $visible]);
+        $this->auditLog('service_visibility', 'Service', $service->id, ['admin_visible' => $visible]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'admin_visible' => $visible]);
+        }
+        return back()->with('success', "Service " . ($visible ? 'shown to' : 'hidden from') . " users.");
+    }
+
+    /**
+     * POST admin/services/bulk-visibility
+     * Toggle visibility for multiple services at once.
+     */
+    public function servicesBulkVisibility(Request $request)
+    {
+        $request->validate([
+            'ids'     => 'required|array',
+            'ids.*'   => 'integer|exists:services,id',
+            'visible' => 'required|boolean',
+        ]);
+
+        $count = Service::whereIn('id', $request->ids)
+                         ->update(['admin_visible' => $request->boolean('visible')]);
+
+        $this->auditLog('bulk_visibility', 'Service', null, [
+            'count'   => $count,
+            'visible' => $request->boolean('visible'),
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'updated' => $count]);
+        }
+        return back()->with('success', "{$count} service(s) updated.");
+    }
+
+    /**
+     * POST admin/services/{service}/admin-update
+     * Save admin overrides: custom name, price, description, delivery label, speed, sort order.
+     */
+    public function servicesAdminUpdate(Request $request, Service $service)
+    {
+        $validated = $request->validate([
+            'admin_name'             => 'nullable|string|max:255',
+            'admin_price'            => 'nullable|numeric|min:0|max:99999',
+            'admin_description'      => 'nullable|string|max:2000',
+            'delivery_time_label'    => 'nullable|string|max:80',
+            'delivery_speed'         => 'nullable|in:instant,fast,standard,slow',
+            'estimated_start_min'    => 'nullable|integer|min:0|max:99999',
+            'estimated_complete_min' => 'nullable|integer|min:0|max:999999',
+            'sort_order'             => 'nullable|integer|min:0|max:99999',
+            'admin_visible'          => 'nullable|boolean',
+        ]);
+
+        // Treat empty strings as null
+        foreach (['admin_name', 'admin_price', 'admin_description', 'delivery_time_label'] as $k) {
+            if (isset($validated[$k]) && trim($validated[$k]) === '') {
+                $validated[$k] = null;
+            }
+        }
+
+        $service->update($validated);
+
+        // Bust the category services cache so the new data is served immediately
+        \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
+
+        $this->auditLog('admin_update_service', 'Service', $service->id, $validated);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'service' => $service->fresh()]);
+        }
+        return back()->with('success', "Service "{$service->display_name}" updated.");
     }
 
     // ── Tickets ───────────────────────────────────────────────────────────────
@@ -490,6 +605,68 @@ class AdminController extends Controller
         \App\Models\SiteSetting::set('whatsapp_number',  $validated['whatsapp_number']  ?? '');
         \App\Models\SiteSetting::set('whatsapp_message', $validated['whatsapp_message'] ?? '');
         return back()->with('success', 'Settings saved successfully.');
+    }
+
+    // ── Appearance ────────────────────────────────────────────────────────────
+
+    public function appearance()
+    {
+        return view('admin.appearance', [
+            'darkPrimary'  => \App\Models\SiteSetting::get('appearance_dark_primary',  ''),
+            'darkAccent'   => \App\Models\SiteSetting::get('appearance_dark_accent',   ''),
+            'darkBase'     => \App\Models\SiteSetting::get('appearance_dark_base',     ''),
+            'darkCard'     => \App\Models\SiteSetting::get('appearance_dark_card',     ''),
+            'lightPrimary' => \App\Models\SiteSetting::get('appearance_light_primary', ''),
+            'lightAccent'  => \App\Models\SiteSetting::get('appearance_light_accent',  ''),
+            'lightBase'    => \App\Models\SiteSetting::get('appearance_light_base',    ''),
+            'lightCard'    => \App\Models\SiteSetting::get('appearance_light_card',    ''),
+            'borderRadius' => \App\Models\SiteSetting::get('appearance_border_radius', ''),
+            'fontSize'     => \App\Models\SiteSetting::get('appearance_font_size',     ''),
+            'currentFont'  => \App\Models\SiteSetting::get('appearance_font',          ''),
+            'customCSS'    => \App\Models\SiteSetting::get('appearance_custom_css',    ''),
+        ]);
+    }
+
+    public function appearanceSave(Request $request)
+    {
+        $hex = 'nullable|string|regex:/^#[0-9a-fA-F]{6}$/';
+        $validated = $request->validate([
+            'appearance_dark_primary'  => $hex,
+            'appearance_dark_accent'   => $hex,
+            'appearance_dark_base'     => $hex,
+            'appearance_dark_card'     => $hex,
+            'appearance_light_primary' => $hex,
+            'appearance_light_accent'  => $hex,
+            'appearance_light_base'    => $hex,
+            'appearance_light_card'    => $hex,
+            'appearance_border_radius' => 'nullable|string|max:10',
+            'appearance_font_size'     => 'nullable|string|max:10',
+            'appearance_font'          => 'nullable|string|max:80',
+            'appearance_custom_css'    => 'nullable|string|max:8000',
+        ]);
+
+        foreach ($validated as $key => $value) {
+            \App\Models\SiteSetting::set($key, $value ?? '');
+        }
+
+        \Illuminate\Support\Facades\Cache::flush(); // clear all cached settings
+
+        return back()->with('appearance_saved', true)->with('success', 'Appearance saved successfully.');
+    }
+
+    public function appearanceReset()
+    {
+        $keys = [
+            'appearance_dark_primary','appearance_dark_accent','appearance_dark_base','appearance_dark_card',
+            'appearance_light_primary','appearance_light_accent','appearance_light_base','appearance_light_card',
+            'appearance_border_radius','appearance_font_size','appearance_font','appearance_custom_css',
+        ];
+        foreach ($keys as $k) {
+            \App\Models\SiteSetting::set($k, '');
+        }
+        \Illuminate\Support\Facades\Cache::flush();
+
+        return redirect()->route('admin.appearance')->with('success', 'Appearance reset to defaults.');
     }
 
     // ── Private Helpers ───────────────────────────────────────────────────────
