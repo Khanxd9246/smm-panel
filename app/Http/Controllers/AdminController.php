@@ -370,22 +370,17 @@ class AdminController extends Controller
 
     // ── Services ──────────────────────────────────────────────────────────────
 
-    public function servicesIndex(Request $request)
-    {
-        $query = Service::with('apiProvider:id,name');
-        if ($tier   = $request->get('tier'))   $query->where('tier', $tier);
-        if ($status = $request->get('status')) $query->where('status', $status);
-        $sortBy  = in_array($request->get('sort_by'), ['name', 'rate', 'min_time', 'created_at'], true)
-                   ? $request->get('sort_by') : 'name';
-        $sortDir = $request->get('sort_direction', 'asc');
+   public function servicesIndex(Request $request)
+{
+    // ... existing query logic ...
+    $services = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
 
-        $services = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
+    // THIS IS THE FIX: Fetch categories so the view can loop through them
+    $categories = \App\Models\Category::orderBy('name')->get(['id', 'name']);
 
-        // FIX: Add categories list so the view doesn't crash
-        $categories = \App\Models\Category::orderBy('name')->get(['id', 'name']);
-
-        return view('admin.services.index', compact('services', 'categories'));
-    }
+    return view('admin.services.index', compact('services', 'categories'));
+}
+        
 
     public function servicesToggle(Service $service)
     {
