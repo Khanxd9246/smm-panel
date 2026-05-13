@@ -97,8 +97,7 @@
 
 {{-- Filter bar --}}
 <form method="GET" action="{{ route('admin.services.manage') }}" class="filter-bar" id="filterForm">
-  <input type="text" name="q" value="{{ request('q') }}" placeholder="Search services…" class="inp" style="width:180px;padding:7px 12px">
-  <input type="text" name="api_id" value="{{ request('api_id') }}" placeholder="Provider Service ID" class="inp" style="width:150px;padding:7px 12px" title="Search by provider's service ID">
+  <input type="text" name="q" value="{{ request('q') }}" placeholder="Name or service ID (e.g. 1234)" class="inp" style="width:220px;padding:7px 12px">
   <select name="category_id" class="inp" style="width:160px;padding:7px 12px" onchange="this.form.submit()">
     <option value="">All Categories</option>
     @foreach($categories as $cat)
@@ -174,8 +173,7 @@
               @endif
             </div>
             <div style="font-size:10.5px;color:var(--c-muted)">
-              {{ $svc->category->name ?? '—' }} &nbsp;·&nbsp;
-              <span title="Provider Service ID" style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--c-primary)">#{{ $svc->api_service_id }}</span>
+              {{ $svc->category->name ?? '—' }} &nbsp;·&nbsp; ID #{{ $svc->id }}
               @if($svc->apiProvider) &nbsp;·&nbsp; {{ $svc->apiProvider->name }} @endif
             </div>
           </td>
