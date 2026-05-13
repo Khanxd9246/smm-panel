@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\ApiProvider;
-use App\Models\Category;
+use App\Models\Category; //
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\Ticket;
@@ -35,14 +35,12 @@ class AdminController extends Controller
         $stats = Cache::remember('admin_dashboard_stats', 300, function () {
             return DB::selectOne("
                 SELECT
-                    COUNT(*) FILTER (WHERE 1=1)                             AS total_orders,
+                    COUNT(*) FILTER (WHERE 1=1) AS total_orders,
                     COUNT(*) FILTER (WHERE status IN ('pending','in progress')) AS pending_orders,
-                    COUNT(*) FILTER (WHERE status = 'completed')            AS completed_orders,
-                    (SELECT COUNT(*) FROM users WHERE status = 'active')    AS active_users,
-                    (SELECT SUM(amount) FROM transactions
-                        WHERE type = 'deposit' AND status = 'completed')    AS total_revenue,
-                    (SELECT COUNT(*) FROM transactions
-                        WHERE status = 'pending' AND type = 'deposit')      AS pending_deposits,
+                    COUNT(*) FILTER (WHERE status = 'completed') AS completed_orders,
+                    (SELECT COUNT(*) FROM users WHERE status = 'active') AS active_users,
+                    (SELECT SUM(amount) FROM transactions WHERE type = 'deposit' AND status = 'completed') AS total_revenue,
+                    (SELECT COUNT(*) FROM transactions WHERE status = 'pending' AND type = 'deposit') AS pending_deposits,
                     (SELECT COUNT(*) FROM tickets WHERE status != 'closed') AS open_tickets
                 FROM orders
             ");
@@ -52,14 +50,12 @@ class AdminController extends Controller
             ->latest()
             ->take(10)
             ->get();
-
         $recent_users = User::latest()->take(6)->get(['id', 'name', 'email', 'funds', 'created_at', 'status']);
 
         $providers = Cache::remember('admin_providers_list', 600, fn () =>
             ApiProvider::withCount('services')->get()
         );
 
-        // Pending deposits — shown prominently so admin never misses them
         $pending_deposits = Transaction::where('status', 'pending')
             ->where('type', 'deposit')
             ->where('gateway', 'manual')
@@ -96,7 +92,6 @@ class AdminController extends Controller
     public function usersIndex(Request $request)
     {
         $query = User::query();
-
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
@@ -112,7 +107,6 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(30)
             ->withQueryString();
-
         return view('admin.users.index', compact('users'));
     }
 
@@ -160,7 +154,6 @@ class AdminController extends Controller
     public function usersBan(Request $request, User $user)
     {
         $validated = $request->validate(['reason' => 'required|string|min:5|max:255']);
-
         if ($user->is_admin) {
             return back()->withErrors(['error' => 'Cannot ban admin accounts through this interface.']);
         }
@@ -169,7 +162,6 @@ class AdminController extends Controller
         DB::table('sessions')->where('user_id', $user->id)->delete();
         $this->auditLog('ban_user', 'User', $user->id, ['reason' => $validated['reason']]);
         Cache::forget('admin_dashboard_stats');
-
         return back()->with('success', "User {$user->name} has been banned.");
     }
 
@@ -185,7 +177,6 @@ class AdminController extends Controller
     public function ordersIndex(Request $request)
     {
         $query = Order::with(['user:id,name,email', 'service:id,name']);
-
         if ($status = $request->get('status')) $query->where('status', $status);
         if ($userId = $request->get('user_id')) $query->where('user_id', $userId);
         if ($search = $request->get('search')) {
@@ -201,12 +192,10 @@ class AdminController extends Controller
         $validated = $request->validate([
             'status' => 'required|in:pending,in progress,completed,partial,cancelled,refunded,error',
         ]);
-
         $oldStatus = $order->status;
         $order->update(['status' => $validated['status']]);
         $this->auditLog('update_order_status', 'Order', $order->id, ['from' => $oldStatus, 'to' => $validated['status']]);
         Cache::forget('admin_dashboard_stats');
-
         return back()->with('success', "Order #{$order->id} status updated.");
     }
 
@@ -215,7 +204,6 @@ class AdminController extends Controller
     public function transactionsIndex(Request $request)
     {
         $query = Transaction::with('user:id,name,email');
-
         if ($status = $request->get('status')) $query->where('status', $status);
         if ($type   = $request->get('type'))   $query->where('type', $type);
 
@@ -245,7 +233,6 @@ class AdminController extends Controller
                     ->where('transaction_id', $transaction->id)
                     ->update(['status' => 'completed', 'updated_at' => now()]);
             });
-
             Cache::forget('admin_dashboard_stats');
             return back()->with('success', 'Transaction approved and funds credited.');
 
@@ -268,7 +255,6 @@ class AdminController extends Controller
         DB::table('payment_logs')
             ->where('transaction_id', $transaction->id)
             ->update(['status' => 'failed', 'error_message' => $validated['reason']]);
-
         return back()->with('success', 'Transaction rejected.');
     }
 
@@ -290,7 +276,6 @@ class AdminController extends Controller
             'api_key'             => 'required|string|max:255',
             'percentage_increase' => 'required|numeric|min:0|max:10000',
         ]);
-
         try {
             $provider = ApiProvider::create($validated + ['status' => 'active']);
             $this->auditLog('create_provider', 'ApiProvider', $provider->id, ['name' => $provider->name]);
@@ -312,7 +297,6 @@ class AdminController extends Controller
             'percentage_increase' => 'required|numeric|min:0|max:10000',
             'status'              => 'required|in:active,inactive',
         ]);
-
         if (empty($validated['api_key'])) unset($validated['api_key']);
         $provider->update($validated);
         $this->auditLog('update_provider', 'ApiProvider', $provider->id, $validated);
@@ -362,7 +346,6 @@ class AdminController extends Controller
             $updated = 0;
             $orders  = \App\Models\Order::whereIn('status', ['pending', 'in progress'])
                 ->whereNotNull('api_order_id')->get();
-
             foreach ($orders as $order) {
                 try {
                     if ($order->service && $order->service->apiProvider) {
@@ -390,16 +373,18 @@ class AdminController extends Controller
     public function servicesIndex(Request $request)
     {
         $query = Service::with('apiProvider:id,name');
-
         if ($tier   = $request->get('tier'))   $query->where('tier', $tier);
         if ($status = $request->get('status')) $query->where('status', $status);
-
         $sortBy  = in_array($request->get('sort_by'), ['name', 'rate', 'min_time', 'created_at'], true)
                    ? $request->get('sort_by') : 'name';
         $sortDir = $request->get('sort_direction', 'asc');
 
         $services = $query->orderBy($sortBy, $sortDir)->paginate(50)->withQueryString();
-        return view('admin.services.index', compact('services'));
+
+        // FIX: Add categories list so the view doesn't crash
+        $categories = \App\Models\Category::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.services.index', compact('services', 'categories'));
     }
 
     public function servicesToggle(Service $service)
@@ -412,19 +397,13 @@ class AdminController extends Controller
 
     // ── Phase 3: Admin service management ────────────────────────────────────
 
-    /**
-     * GET admin/services/manage
-     * Full management table: all services with visibility toggles, price overrides, delivery labels.
-     */
     public function servicesManage(Request $request)
     {
         $query = Service::with(['apiProvider:id,name', 'category:id,name']);
-
         if ($cat    = $request->get('category_id')) $query->where('category_id', $cat);
         if ($vis    = $request->get('visible'))     $query->where('admin_visible', $vis === '1');
-        if ($search = $request->get('q'))           $query->search($search);
+        if ($search = $request->get('q'))           $query->where('name', 'ilike', "%{$search}%");
         if ($speed  = $request->get('speed'))       $query->where('delivery_speed', $speed);
-
         $sortBy  = in_array($request->get('sort_by'), ['name','rate','admin_price','sort_order','orders_count'], true)
                    ? $request->get('sort_by') : 'sort_order';
         $sortDir = $request->get('sort_dir', 'asc') === 'desc' ? 'desc' : 'asc';
@@ -437,14 +416,9 @@ class AdminController extends Controller
             'hidden'  => Service::where('admin_visible', false)->count(),
             'custom_price' => Service::whereNotNull('admin_price')->where('admin_price', '>', 0)->count(),
         ];
-
         return view('admin.services.manage', compact('services', 'categories', 'stats'));
     }
 
-    /**
-     * POST admin/services/{service}/visibility
-     * Toggle a single service's admin_visible flag (AJAX-friendly).
-     */
     public function servicesVisibility(Request $request, Service $service)
     {
         $visible = $request->boolean('visible');
@@ -457,10 +431,6 @@ class AdminController extends Controller
         return back()->with('success', "Service " . ($visible ? 'shown to' : 'hidden from') . " users.");
     }
 
-    /**
-     * POST admin/services/bulk-visibility
-     * Toggle visibility for multiple services at once.
-     */
     public function servicesBulkVisibility(Request $request)
     {
         $request->validate([
@@ -468,26 +438,18 @@ class AdminController extends Controller
             'ids.*'   => 'integer|exists:services,id',
             'visible' => 'required|boolean',
         ]);
-
         $count = Service::whereIn('id', $request->ids)
                          ->update(['admin_visible' => $request->boolean('visible')]);
-
         $this->auditLog('bulk_visibility', 'Service', null, [
             'count'   => $count,
             'visible' => $request->boolean('visible'),
         ]);
-
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'updated' => $count]);
         }
         return back()->with('success', "{$count} service(s) updated.");
     }
-
-    /**
-     * POST admin/services/{service}/admin-update
-     * Save admin overrides: custom name, price, description, delivery label, speed, sort order.
-     */
-    public function servicesAdminUpdate(Request $request, Service $service)
+public function servicesAdminUpdate(Request $request, Service $service)
     {
         $validated = $request->validate([
             'admin_name'             => 'nullable|string|max:255',
@@ -500,8 +462,6 @@ class AdminController extends Controller
             'sort_order'             => 'nullable|integer|min:0|max:99999',
             'admin_visible'          => 'nullable|boolean',
         ]);
-
-        // Treat empty strings as null
         foreach (['admin_name', 'admin_price', 'admin_description', 'delivery_time_label'] as $k) {
             if (isset($validated[$k]) && trim($validated[$k]) === '') {
                 $validated[$k] = null;
@@ -509,19 +469,16 @@ class AdminController extends Controller
         }
 
         $service->update($validated);
-
-        // Bust the category services cache so the new data is served immediately
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
-
         $this->auditLog('admin_update_service', 'Service', $service->id, $validated);
 
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'service' => $service->fresh()]);
         }
-        return back()->with('success', "Service "{$service->display_name}" updated.");
+        return back()->with('success', 'Service updated.');
     }
 
-    // ── Tickets ───────────────────────────────────────────────────────────────
+    // â”€â”€ Tickets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function ticketsIndex(Request $request)
     {
@@ -551,7 +508,7 @@ class AdminController extends Controller
         return back()->with('success', 'Ticket closed.');
     }
 
-    // ── Logs ──────────────────────────────────────────────────────────────────
+    // â”€â”€ Logs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function activityLogs()
     {
@@ -564,7 +521,6 @@ class AdminController extends Controller
         $query = DB::table('payment_logs')
             ->leftJoin('users', 'payment_logs.user_id', '=', 'users.id')
             ->select('payment_logs.*', 'users.name as user_name', 'users.email as user_email');
-
         if ($gateway = $request->get('gateway')) $query->where('payment_logs.gateway', $gateway);
         if ($status  = $request->get('status'))  $query->where('payment_logs.status', $status);
 
@@ -577,7 +533,6 @@ class AdminController extends Controller
         $query = DB::table('provider_logs')
             ->join('api_providers', 'provider_logs.api_provider_id', '=', 'api_providers.id')
             ->select('provider_logs.*', 'api_providers.name as provider_name');
-
         if ($providerId = $request->get('provider_id')) $query->where('provider_logs.api_provider_id', $providerId);
 
         $logs      = $query->orderByDesc('provider_logs.created_at')->paginate(50);
@@ -603,7 +558,7 @@ class AdminController extends Controller
         return back()->with('success', 'Settings saved successfully.');
     }
 
-    // ── Appearance ────────────────────────────────────────────────────────────
+    // â”€â”€ Appearance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function appearance()
     {
@@ -640,13 +595,11 @@ class AdminController extends Controller
             'appearance_font'          => 'nullable|string|max:80',
             'appearance_custom_css'    => 'nullable|string|max:8000',
         ]);
-
         foreach ($validated as $key => $value) {
             \App\Models\SiteSetting::set($key, $value ?? '');
         }
 
-        \Illuminate\Support\Facades\Cache::flush(); // clear all cached settings
-
+        \Illuminate\Support\Facades\Cache::flush();
         return back()->with('appearance_saved', true)->with('success', 'Appearance saved successfully.');
     }
 
@@ -661,11 +614,8 @@ class AdminController extends Controller
             \App\Models\SiteSetting::set($k, '');
         }
         \Illuminate\Support\Facades\Cache::flush();
-
         return redirect()->route('admin.appearance')->with('success', 'Appearance reset to defaults.');
     }
-
-    // ── Private Helpers ───────────────────────────────────────────────────────
 
     private function auditLog(string $action, string $targetType, int $targetId, array $data): void
     {
