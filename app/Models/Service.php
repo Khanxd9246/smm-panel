@@ -28,6 +28,10 @@ class Service extends Model
         'ai_tags', 'ai_description',
         // ── NEW: analytics ────────────────────────────────────────────────
         'views_count', 'orders_count', 'last_synced_at',
+        // ── Phase 3: Admin service controls ──────────────────────────────
+        'admin_visible', 'admin_price', 'admin_name', 'admin_description',
+        'delivery_time_label', 'delivery_speed',
+        'estimated_start_min', 'estimated_complete_min', 'sort_order',
     ];
 
     protected $casts = [
@@ -52,6 +56,12 @@ class Service extends Model
         'views_count'      => 'integer',
         'orders_count'     => 'integer',
         'last_synced_at'   => 'datetime',
+        // Phase 3
+        'admin_visible'           => 'boolean',
+        'admin_price'             => 'float',
+        'estimated_start_min'     => 'integer',
+        'estimated_complete_min'  => 'integer',
+        'sort_order'              => 'integer',
     ];
 
     // ── Relations (unchanged) ─────────────────────────────────────────────
@@ -83,6 +93,16 @@ class Service extends Model
             $query->where('is_hidden', false);
         }
 
+        return $query;
+    }
+
+    // ── Phase 3: admin-visible scope (used in all user-facing queries) ────
+
+    public function scopeAdminVisible(Builder $query): Builder
+    {
+        if (Schema::hasColumn('services', 'admin_visible')) {
+            $query->where('admin_visible', true);
+        }
         return $query;
     }
 
@@ -143,16 +163,80 @@ class Service extends Model
         return $query->where('quality_score', '<=', 3);
     }
 
-    // ── NEW accessors ─────────────────────────────────────────────────────
+    // ── Accessors ─────────────────────────────────────────────────────────
 
+    /** Price shown to users — admin override wins */
+    public function getDisplayPriceAttribute(): float
+    {
+        return ($this->admin_price > 0) ? (float) $this->admin_price : (float) $this->rate;
+    }
+
+    /** Name shown to users — admin override wins */
+    public function getDisplayNameAttribute(): string
+    {
+        return ($this->admin_name && trim($this->admin_name) !== '')
+            ? $this->admin_name
+            : $this->name;
+    }
+
+    /** Description shown to users — admin override wins */
+    public function getDisplayDescriptionAttribute(): ?string
+    {
+        return ($this->admin_description && trim($this->admin_description) !== '')
+            ? $this->admin_description
+            : $this->description;
+    }
+
+    /** Human-readable delivery label for badge */
     public function getDeliveryLabelAttribute(): string
     {
-        return match($this->delivery_badge) {
+        if ($this->delivery_time_label && trim($this->delivery_time_label) !== '') {
+            return $this->delivery_time_label;
+        }
+        return match($this->delivery_speed ?? $this->delivery_badge ?? 'standard') {
             'instant' => '⚡ Instant',
-            'fast'    => '🚀 Fast',
-            'slow'    => '🐢 Slow',
-            default   => '⏱ Standard',
+            'fast'    => '🚀 Fast (1–6 hrs)',
+            'slow'    => '🐢 Slow (7+ days)',
+            default   => '⏱ Standard (1–3 days)',
         };
+    }
+
+    /** CSS chip class for delivery speed */
+    public function getDeliveryColorAttribute(): string
+    {
+        return match($this->delivery_speed ?? $this->delivery_badge ?? 'standard') {
+            'instant' => 'chip-blue',
+            'fast'    => 'chip-green',
+            'slow'    => 'chip-yellow',
+            default   => 'chip-gray',
+        };
+    }
+
+    /** Estimated start text */
+    public function getEstimatedStartLabelAttribute(): string
+    {
+        $min = $this->estimated_start_min ?? $this->avg_start_time ?? null;
+        if (!$min) return 'Usually within a few minutes';
+        if ($min < 60) return "Starts in ~{$min} min";
+        $h = round($min / 60, 1);
+        return "Starts in ~{$h} hr";
+    }
+
+    /** Estimated completion text */
+    public function getEstimatedCompleteLabelAttribute(): string
+    {
+        $min = $this->estimated_complete_min ?? null;
+        if (!$min) {
+            if ($this->max_time) {
+                return $this->max_time < 24
+                    ? "Up to {$this->max_time} hr"
+                    : 'Up to ' . round($this->max_time / 24) . ' days';
+            }
+            return 'Varies';
+        }
+        if ($min < 60)   return "~{$min} min";
+        if ($min < 1440) return '~' . round($min / 60) . ' hr';
+        return '~' . round($min / 1440) . ' days';
     }
 
     public function getQualityColorAttribute(): string
@@ -168,12 +252,13 @@ class Service extends Model
     public function getAllTagsAttribute(): array
     {
         $tags = $this->ai_tags ?? [];
-        if ($this->is_premium)                   $tags[] = 'Premium';
-        if ($this->has_refill)                   $tags[] = 'Refill';
-        if ($this->delivery_badge === 'instant') $tags[] = 'Instant';
-        if ($this->delivery_badge === 'fast')    $tags[] = 'Fast';
-        if (($this->orders_count ?? 0) > 500)   $tags[] = 'Best Seller';
-        if (($this->quality_score ?? 0) >= 9)   $tags[] = 'Top Rated';
+        if ($this->is_premium)  $tags[] = 'Premium';
+        if ($this->has_refill)  $tags[] = 'Refill';
+        $speed = $this->delivery_speed ?? $this->delivery_badge ?? '';
+        if ($speed === 'instant') $tags[] = 'Instant';
+        if ($speed === 'fast')    $tags[] = 'Fast';
+        if (($this->orders_count ?? 0) > 500) $tags[] = 'Best Seller';
+        if (($this->quality_score ?? 0) >= 9) $tags[] = 'Top Rated';
         return array_unique($tags);
     }
 }

@@ -43,6 +43,7 @@ class ServiceFilter
 
         $query = Service::with('category')
             ->active()
+            ->adminVisible()   // Phase 3: only show admin-approved services
             ->forPlatform($platform)
             ->ofType($type)
             ->search($search)

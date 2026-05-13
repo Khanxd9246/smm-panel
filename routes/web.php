@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('services-by-category', [OrderController::class, 'getServicesByCategory'])->name('services_by_category');
         Route::post('/', [OrderController::class, 'store'])->middleware('throttle:20,1')->name('store');
         Route::get('{order}', [OrderController::class, 'show'])->name('show');
+        Route::get('{order}/live-status', [OrderController::class, 'liveStatus'])->name('live_status'); // Phase 3: AJAX live poll
     });
 
     // Services
@@ -101,6 +102,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('settings',  [AdminController::class, 'settings'])->name('settings');
     Route::post('settings', [AdminController::class, 'settingsSave'])->name('settings.save');
+    // ── Appearance (Phase 2) ─────────────────────────────────────────────────
+    Route::get('appearance',        [AdminController::class, 'appearance'])->name('appearance');
+    Route::post('appearance',       [AdminController::class, 'appearanceSave'])->name('appearance.save');
+    Route::post('appearance/reset', [AdminController::class, 'appearanceReset'])->name('appearance.reset');
 
     // Fund Accounts
     Route::prefix('fund-accounts')->name('fund_accounts.')->group(function () {
@@ -132,10 +137,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Services
     Route::prefix('services')->name('services.')->group(function () {
-        Route::get('/',                 [AdminController::class, 'servicesIndex'])->name('index');
-        Route::post('{service}/toggle', [AdminController::class, 'servicesToggle'])->name('toggle');
-        Route::get('{service}/edit',    [AdminController::class, 'servicesEdit'])->name('edit');
-        Route::put('{service}',         [AdminController::class, 'servicesUpdate'])->name('update');
+        Route::get('/',                          [AdminController::class, 'servicesIndex'])->name('index');
+        Route::post('{service}/toggle',          [AdminController::class, 'servicesToggle'])->name('toggle');
+        Route::get('{service}/edit',             [AdminController::class, 'servicesEdit'])->name('edit');
+        Route::put('{service}',                  [AdminController::class, 'servicesUpdate'])->name('update');
+        // Phase 3: admin visibility & custom pricing
+        Route::post('{service}/visibility',      [AdminController::class, 'servicesVisibility'])->name('visibility');
+        Route::post('bulk-visibility',           [AdminController::class, 'servicesBulkVisibility'])->name('bulk_visibility');
+        Route::post('{service}/admin-update',    [AdminController::class, 'servicesAdminUpdate'])->name('admin_update');
+        Route::get('manage',                     [AdminController::class, 'servicesManage'])->name('manage');
     });
 
     // Sync
