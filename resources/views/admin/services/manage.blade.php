@@ -173,7 +173,8 @@
               @endif
             </div>
             <div style="font-size:10.5px;color:var(--c-muted)">
-              {{ $svc->category->name ?? '—' }} &nbsp;·&nbsp; ID #{{ $svc->id }}
+              {{ $svc->category->name ?? '—' }} &nbsp;·&nbsp;
+              <span title="Provider Service ID" style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--c-primary)">#{{ $svc->api_service_id }}</span>
               @if($svc->apiProvider) &nbsp;·&nbsp; {{ $svc->apiProvider->name }} @endif
             </div>
           </td>
