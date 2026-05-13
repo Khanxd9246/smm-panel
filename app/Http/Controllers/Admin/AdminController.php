@@ -522,7 +522,7 @@ class AdminController extends Controller
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'service' => $service->fresh()]);
         }
-        return back()->with('success', "Service "{$service->display_name}" updated.");
+        return back()->with('success', 'Service ' . $service->display_name . ' updated.');
     }
 
     // ── Tickets ───────────────────────────────────────────────────────────────
