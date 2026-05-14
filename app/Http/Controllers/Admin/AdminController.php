@@ -453,15 +453,23 @@ class AdminController extends Controller
     {
         $visible = $request->boolean('visible');
         $service->update(['admin_visible' => $visible]);
-        // Bust caches so category lists update immediately for all users
+
+        // Auto-activate or deactivate the parent category
+        $categoryUpdated = $this->syncCategoryVisibility($service->category_id);
+
+        // Bust caches
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
         $this->auditLog('service_visibility', 'Service', $service->id, ['admin_visible' => $visible]);
 
         if ($request->expectsJson()) {
-            return response()->json(['ok' => true, 'admin_visible' => $visible]);
+            return response()->json(['ok' => true, 'admin_visible' => $visible, 'category_status' => $categoryUpdated]);
         }
-        return back()->with('success', 'Service ' . ($visible ? 'shown to' : 'hidden from') . ' users.');
+
+        $msg = 'Service ' . ($visible ? 'enabled and visible to users' : 'hidden from users');
+        if ($categoryUpdated === 'activated')   $msg .= ' — category also activated automatically';
+        if ($categoryUpdated === 'deactivated') $msg .= ' — category deactivated (no visible services remain)';
+        return back()->with('success', $msg);
     }
 
     /**
@@ -476,12 +484,20 @@ class AdminController extends Controller
             'visible' => 'required|boolean',
         ]);
 
-        $count = Service::whereIn('id', $request->ids)
-                         ->update(['admin_visible' => $request->boolean('visible')]);
+        $affectedServices = Service::whereIn('id', $request->ids)->get(['id', 'category_id']);
+        $affectedServices->each->update(['admin_visible' => $request->boolean('visible')]);
+        $count = $affectedServices->count();
+
+        // Auto-sync every affected category
+        $affectedCategoryIds = $affectedServices->pluck('category_id')->unique();
+        foreach ($affectedCategoryIds as $catId) {
+            $this->syncCategoryVisibility($catId);
+        }
 
         $this->auditLog('bulk_visibility', 'Service', null, [
-            'count'   => $count,
-            'visible' => $request->boolean('visible'),
+            'count'      => $count,
+            'visible'    => $request->boolean('visible'),
+            'categories' => $affectedCategoryIds->values(),
         ]);
 
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
@@ -489,7 +505,7 @@ class AdminController extends Controller
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'updated' => $count]);
         }
-        return back()->with('success', $count . ' service(s) updated.');
+        return back()->with('success', $count . ' service(s) updated — categories synced automatically.');
     }
 
     /**
@@ -519,8 +535,12 @@ class AdminController extends Controller
 
         $service->update($validated);
 
-        // Bust the category services cache so the new data is served immediately
-        // Bust per-category services cache AND the visible-categories list cache
+        // Auto-sync parent category if visibility was part of this update
+        if (array_key_exists('admin_visible', $validated)) {
+            $this->syncCategoryVisibility($service->category_id);
+        }
+
+        // Bust caches
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
 
@@ -677,6 +697,30 @@ class AdminController extends Controller
     }
 
     // ── Private Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Auto-activate or deactivate a category based on whether it has
+     * any admin_visible services. Returns 'activated', 'deactivated', or 'unchanged'.
+     */
+    private function syncCategoryVisibility(int $categoryId): string
+    {
+        $category = \App\Models\Category::find($categoryId);
+        if (!$category) return 'unchanged';
+
+        $hasVisibleServices = \App\Models\Service::where('category_id', $categoryId)
+            ->where('status', 'active')
+            ->where('admin_visible', true)
+            ->exists();
+
+        $newStatus = $hasVisibleServices ? 'active' : 'inactive';
+
+        if ($category->status === $newStatus) return 'unchanged';
+
+        $category->update(['status' => $newStatus]);
+        $this->auditLog('auto_sync_category', 'Category', $categoryId, ['status' => $newStatus]);
+
+        return $hasVisibleServices ? 'activated' : 'deactivated';
+    }
 
     private function auditLog(string $action, string $targetType, int $targetId, array $data): void
     {
