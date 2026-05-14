@@ -164,7 +164,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Users
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/',                 [AdminController::class, 'usersIndex'])->name('index');
-        Route::post('{user}/add-funds', [AdminController::class, 'usersAddFunds'])->name('add_funds');
+        Route::post('{user}/add-funds',    [AdminController::class, 'usersAddFunds'])->name('add_funds');
+        Route::post('{user}/deduct-funds', [AdminController::class, 'usersDeductFunds'])->name('deduct_funds');
+        Route::post('{user}/empty-funds',  [AdminController::class, 'usersEmptyFunds'])->name('empty_funds');
         Route::post('{user}/ban',       [AdminController::class, 'usersBan'])->name('ban');
         Route::post('{user}/unban',     [AdminController::class, 'usersUnban'])->name('unban');
     });
