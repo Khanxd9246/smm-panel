@@ -1,159 +1,286 @@
 @extends('layouts.app')
-@section('title','Users')
-@section('page-title','Users')
-@section('css')
-<style>
-.tr-row{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s;cursor:default}
-.tr-row:hover{background:rgba(255,255,255,.025)}
-.tr-row:last-child{border-bottom:none}
-.search-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.stat-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;background:var(--c-card);border:1px solid var(--c-border)}
-</style>
-@endsection
+
+@section('title', 'Users')
+@section('page-title', 'Users')
 
 @section('content')
+<div class="flex-1 p-6">
+  <div class="max-w-7xl mx-auto">
 
-{{-- Stats strip --}}
-<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px" class="fade-up">
-  <div class="stat-pill">
-    <span class="material-symbols-outlined" style="font-size:15px;color:var(--c-primary-l)">people</span>
-    <span style="color:var(--c-muted)">Total:</span>
-    <span style="color:var(--c-text)">{{ $users->total() }}</span>
-  </div>
-  <div class="stat-pill">
-    <span style="width:7px;height:7px;border-radius:50%;background:var(--c-accent);display:inline-block"></span>
-    <span style="color:var(--c-muted)">Active:</span>
-    <span style="color:var(--c-accent)">{{ $users->where('status','active')->count() }}</span>
-  </div>
-  <div class="stat-pill">
-    <span style="width:7px;height:7px;border-radius:50%;background:var(--c-danger);display:inline-block"></span>
-    <span style="color:var(--c-muted)">Banned:</span>
-    <span style="color:var(--c-danger)">{{ $users->where('status','banned')->count() }}</span>
-  </div>
-</div>
-
-{{-- Search --}}
-<div class="card fade-up" style="padding:16px;margin-bottom:14px">
-  <form action="{{ route('admin.users.index') }}" method="GET" class="search-bar">
-    <div style="position:relative;flex:1;min-width:200px">
-      <span class="material-symbols-outlined" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--c-muted);pointer-events:none">search</span>
-      <input type="text" name="search" placeholder="Search name or email…" value="{{ request('search') }}"
-        class="inp" style="padding-left:36px">
+    {{-- Page header --}}
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-on-surface">Users</h1>
+        <p class="text-on-surface-variant mt-1">Manage all platform users</p>
+      </div>
     </div>
-    <button type="submit" class="btn-primary" style="padding:10px 20px">Search</button>
-    @if(request('search'))
-    <a href="{{ route('admin.users.index') }}" class="btn-ghost" style="padding:10px 16px">Clear</a>
+
+    {{-- Search --}}
+    <div class="glass-card p-4 rounded-xl mb-6">
+      <form action="{{ route('admin.users.index') }}" method="GET" class="flex gap-4">
+        <input type="text" name="search" placeholder="Search by name or email..."
+               value="{{ request('search') }}" class="glass-input flex-1">
+        <button type="submit" class="btn-primary px-6 rounded-lg">Search</button>
+      </form>
+    </div>
+
+    {{-- Flash alerts --}}
+    @if(session('success'))
+    <div class="glass-card p-4 rounded-xl mb-6 border-l-4 border-tertiary bg-tertiary/5">
+      <p class="text-tertiary font-medium">{{ session('success') }}</p>
+    </div>
     @endif
-  </form>
+    @if($errors->any())
+    <div class="glass-card p-4 rounded-xl mb-6 border-l-4 border-error bg-error/5">
+      @foreach($errors->all() as $e)
+      <p class="text-error text-sm">{{ $e }}</p>
+      @endforeach
+    </div>
+    @endif
+
+    {{-- Users Table --}}
+    <div class="glass-card rounded-xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="border-b border-outline-variant/30 bg-surface-container">
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">User</p></th>
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Email</p></th>
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Balance</p></th>
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Orders</p></th>
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Status</p></th>
+              <th class="px-6 py-4 text-left"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Joined</p></th>
+              <th class="px-6 py-4 text-right"><p class="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">Actions</p></th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($users as $user)
+            <tr class="border-b border-outline-variant/30 hover:bg-surface-container/50 transition-colors">
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center text-white font-bold text-xs">
+                    {{ strtoupper(substr($user->name, 0, 1)) }}
+                  </div>
+                  <p class="text-on-surface font-medium">{{ $user->name }}</p>
+                </div>
+              </td>
+              <td class="px-6 py-4">
+                <p class="text-on-surface-variant text-sm">{{ $user->email }}</p>
+              </td>
+              <td class="px-6 py-4">
+                <p class="text-on-surface font-semibold">${{ number_format($user->funds, 2) }}</p>
+                <p class="text-on-surface-variant text-xs">₨{{ number_format($user->funds * session('usd_pkr_rate', 280), 0) }}</p>
+              </td>
+              <td class="px-6 py-4">
+                <p class="text-on-surface font-semibold">{{ $user->orders_count }}</p>
+              </td>
+              <td class="px-6 py-4">
+                <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $user->status === 'active' ? 'bg-tertiary/20 text-tertiary' : 'bg-error/20 text-error' }}">
+                  {{ ucfirst($user->status) }}
+                </span>
+              </td>
+              <td class="px-6 py-4">
+                <p class="text-on-surface-variant text-sm">{{ $user->created_at->format('d M Y') }}</p>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <div class="flex justify-end items-center gap-2 flex-wrap">
+                  {{-- Ban / Unban --}}
+                  @if($user->status === 'active')
+                  <form action="{{ route('admin.users.ban', $user->id) }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" onclick="return confirm('Ban this user?')"
+                            class="text-error hover:text-error/80 font-semibold text-sm transition-colors">Ban</button>
+                  </form>
+                  @else
+                  <form action="{{ route('admin.users.unban', $user->id) }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" class="text-tertiary hover:text-tertiary/80 font-semibold text-sm transition-colors">Unban</button>
+                  </form>
+                  @endif
+
+                  {{-- Add Funds --}}
+                  <button onclick="openFundsModal('add', {{ $user->id }}, '{{ addslashes($user->name) }}', {{ $user->funds }})"
+                          class="text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
+                    + Funds
+                  </button>
+
+                  {{-- Deduct Funds --}}
+                  <button onclick="openFundsModal('deduct', {{ $user->id }}, '{{ addslashes($user->name) }}', {{ $user->funds }})"
+                          class="text-yellow-500 hover:text-yellow-400 font-semibold text-sm transition-colors"
+                          {{ $user->funds <= 0 ? 'disabled style=opacity:.4;cursor:not-allowed' : '' }}>
+                    − Funds
+                  </button>
+
+                  {{-- Empty Wallet --}}
+                  <button onclick="openFundsModal('empty', {{ $user->id }}, '{{ addslashes($user->name) }}', {{ $user->funds }})"
+                          class="text-error hover:text-error/80 font-semibold text-sm transition-colors"
+                          {{ $user->funds <= 0 ? 'disabled style=opacity:.4;cursor:not-allowed' : '' }}>
+                    Clear
+                  </button>
+                </div>
+              </td>
+            </tr>
+            @empty
+            <tr>
+              <td colspan="7" class="px-6 py-12 text-center">
+                <span class="material-symbols-outlined text-[40px] text-outline-variant opacity-40 block mb-2">people</span>
+                <p class="text-on-surface-variant text-sm">No users found</p>
+              </td>
+            </tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {{-- Pagination --}}
+    <div class="mt-6">{{ $users->links() }}</div>
+
+  </div>
 </div>
 
-{{-- Table --}}
-<div class="card fade-up" style="overflow:hidden">
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead>
-        <tr style="border-bottom:1px solid var(--c-border)">
-          @foreach(['User','Email','Balance','Orders','Status','Joined','Actions'] as $h)
-          <th style="padding:12px 16px;text-align:{{ $h==='Actions'?'right':'left' }};font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-muted)">{{ $h }}</th>
-          @endforeach
-        </tr>
-      </thead>
-      <tbody>
-        @forelse($users as $user)
-        <tr class="tr-row">
-          <td style="padding:14px 16px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--c-primary),var(--c-accent));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0">{{ strtoupper(substr($user->name,0,1)) }}</div>
-              <span style="font-weight:600;color:var(--c-text)">{{ $user->name }}</span>
-            </div>
-          </td>
-          <td style="padding:14px 16px;color:var(--c-muted);font-size:12.5px">{{ $user->email }}</td>
-          <td style="padding:14px 16px;font-weight:700;color:var(--c-accent)">${{ number_format($user->funds,2) }}</td>
-          <td style="padding:14px 16px;color:var(--c-text);font-weight:600">{{ $user->orders_count }}</td>
-          <td style="padding:14px 16px">
-            <span class="chip {{ $user->status==='active'?'chip-green':'chip-red' }}">
-              <span style="width:5px;height:5px;border-radius:50%;background:{{ $user->status==='active'?'var(--c-accent)':'var(--c-danger)' }};display:inline-block"></span>
-              {{ ucfirst($user->status) }}
-            </span>
-          </td>
-          <td style="padding:14px 16px;font-size:12px;color:var(--c-muted)">{{ $user->created_at->format('d M Y') }}</td>
-          <td style="padding:14px 16px;text-align:right">
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
-              @if($user->status==='active')
-              <form action="{{ route('admin.users.ban',$user->id) }}" method="POST" style="display:inline" onsubmit="return confirm('Ban {{ addslashes($user->name) }}?')">
-                @csrf
-                <button type="submit" class="btn-xs btn-outline-danger">Ban</button>
-              </form>
-              @else
-              <form action="{{ route('admin.users.unban',$user->id) }}" method="POST" style="display:inline">
-                @csrf
-                <button type="submit" class="btn-xs btn-outline-success">Unban</button>
-              </form>
-              @endif
-              <button onclick="openAddFunds({{ $user->id }},'{{ addslashes($user->name) }}')" class="btn-xs btn-ghost">+ Funds</button>
-            </div>
-          </td>
-        </tr>
-        @empty
-        <tr>
-          <td colspan="7" style="padding:56px;text-align:center;color:var(--c-muted)">
-            <span class="material-symbols-outlined" style="font-size:44px;opacity:.15;display:block;margin-bottom:10px">people</span>
-            No users found
-          </td>
-        </tr>
-        @endforelse
-      </tbody>
-    </table>
-  </div>
-  @if($users->hasPages())
-  <div style="padding:14px 18px;border-top:1px solid var(--c-border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <p style="font-size:12px;color:var(--c-muted)">{{ $users->firstItem() }}–{{ $users->lastItem() }} of {{ $users->total() }}</p>
-    <div style="display:flex;gap:6px">
-      @if($users->onFirstPage())<span class="btn-ghost" style="opacity:.35;cursor:not-allowed;padding:6px 14px;font-size:12px">← Prev</span>
-      @else<a href="{{ $users->previousPageUrl() }}" class="btn-ghost" style="padding:6px 14px;font-size:12px">← Prev</a>@endif
-      @if($users->hasMorePages())<a href="{{ $users->nextPageUrl() }}" class="btn-ghost" style="padding:6px 14px;font-size:12px">Next →</a>
-      @else<span class="btn-ghost" style="opacity:.35;cursor:not-allowed;padding:6px 14px;font-size:12px">Next →</span>@endif
-    </div>
-  </div>
-  @endif
-</div>
+{{-- ══════════════════════════════════════════════════════
+     UNIFIED FUNDS MODAL  (add / deduct / empty)
+══════════════════════════════════════════════════════ --}}
+<div id="fundsModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onclick="if(event.target===this)closeFundsModal()">
+  <div class="glass-card p-6 rounded-xl w-full max-w-sm" style="background:var(--c-card);border:1px solid var(--c-border)">
 
-{{-- Add Funds Modal --}}
-<div id="af-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px" onclick="closeAddFunds()">
-  <div class="card" style="width:100%;max-width:420px;padding:26px" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <h3 style="font-size:16px;font-weight:700;color:var(--c-text)">Add Funds</h3>
-      <button onclick="closeAddFunds()" style="background:none;border:none;color:var(--c-muted);cursor:pointer;display:flex"><span class="material-symbols-outlined" style="font-size:20px">close</span></button>
+    {{-- Header --}}
+    <div class="flex items-center gap-10 mb-5">
+      <div id="modalIcon" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#fff">payments</span>
+      </div>
+      <div>
+        <h3 id="modalTitle" class="text-base font-bold" style="color:var(--c-text)">Funds</h3>
+        <p id="modalSubtitle" class="text-xs mt-0.5" style="color:var(--c-muted)">User</p>
+      </div>
+      <button onclick="closeFundsModal()" style="margin-left:auto;background:none;border:none;color:var(--c-muted);cursor:pointer;font-size:20px;line-height:1">✕</button>
     </div>
-    <p style="font-size:13px;color:var(--c-muted);margin-bottom:18px">Adding to: <strong id="af-name" style="color:var(--c-text)"></strong></p>
-    <form id="af-form" method="POST" style="display:flex;flex-direction:column;gap:14px">
+
+    {{-- Current balance strip --}}
+    <div id="balanceStrip" class="rounded-lg p-3 mb-5 flex items-center justify-between" style="background:var(--c-input-bg);border:1px solid var(--c-border)">
+      <span style="font-size:11.5px;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Current Balance</span>
+      <span id="currentBalance" style="font-size:14px;font-weight:800;color:var(--c-text)">$0.00</span>
+    </div>
+
+    {{-- Add form --}}
+    <form id="addForm" method="POST" class="hidden">
       @csrf
-      <div>
-        <label style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-muted);display:block;margin-bottom:7px">Amount (USD)</label>
-        <input type="number" name="amount" step="0.01" min="0.01" class="inp" placeholder="e.g. 5.00" required>
+      <div class="mb-4">
+        <label style="font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Amount (USD)</label>
+        <input type="number" name="amount" step="0.01" min="0.01" max="10000" required
+               class="inp" style="padding:9px 12px" placeholder="0.00">
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-muted);display:block;margin-bottom:7px">Reason</label>
-        <textarea name="reason" rows="3" class="inp" placeholder="Reason for adding funds…" required minlength="5" style="resize:vertical"></textarea>
+      <div class="mb-5">
+        <label style="font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Reason</label>
+        <textarea name="reason" rows="2" required minlength="5" class="inp" style="padding:9px 12px;resize:none" placeholder="Reason for adding funds…"></textarea>
       </div>
-      <div style="display:flex;gap:10px">
-        <button type="button" onclick="closeAddFunds()" class="btn-ghost" style="flex:1;justify-content:center">Cancel</button>
-        <button type="submit" class="btn-primary" style="flex:1;justify-content:center">Add Funds</button>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeFundsModal()" class="btn-ghost flex-1" style="justify-content:center">Cancel</button>
+        <button type="submit" class="btn-primary flex-1" style="justify-content:center;background:var(--c-primary)">
+          <span class="material-symbols-outlined" style="font-size:15px">add_circle</span> Add Funds
+        </button>
       </div>
     </form>
+
+    {{-- Deduct form --}}
+    <form id="deductForm" method="POST" class="hidden">
+      @csrf
+      <div class="mb-4">
+        <label style="font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Amount to Deduct (USD)</label>
+        <input type="number" name="amount" step="0.01" min="0.01" required
+               class="inp" style="padding:9px 12px" placeholder="0.00" id="deductAmountInput">
+        <p id="deductHint" style="font-size:10.5px;color:var(--c-muted);margin-top:4px">Cannot exceed current balance. Any excess will be capped.</p>
+      </div>
+      <div class="mb-5">
+        <label style="font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Reason</label>
+        <textarea name="reason" rows="2" required minlength="5" class="inp" style="padding:9px 12px;resize:none" placeholder="Reason for deduction…"></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeFundsModal()" class="btn-ghost flex-1" style="justify-content:center">Cancel</button>
+        <button type="submit" class="flex-1 btn-primary" style="justify-content:center;background:var(--c-warn);color:#000">
+          <span class="material-symbols-outlined" style="font-size:15px">remove_circle</span> Deduct
+        </button>
+      </div>
+    </form>
+
+    {{-- Empty form --}}
+    <form id="emptyForm" method="POST" class="hidden">
+      @csrf
+      <div class="rounded-lg p-3 mb-5" style="background:rgba(247,111,111,.08);border:1px solid rgba(247,111,111,.25)">
+        <p style="font-size:12.5px;color:var(--c-danger);font-weight:600">
+          ⚠️ This will set the wallet balance to <strong>$0.00</strong>. This action is logged and cannot be undone.
+        </p>
+      </div>
+      <div class="mb-5">
+        <label style="font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Reason</label>
+        <textarea name="reason" rows="2" required minlength="5" class="inp" style="padding:9px 12px;resize:none" placeholder="Reason for clearing wallet…"></textarea>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="closeFundsModal()" class="btn-ghost flex-1" style="justify-content:center">Cancel</button>
+        <button type="submit" class="btn-primary flex-1" style="justify-content:center;background:var(--c-danger)">
+          <span class="material-symbols-outlined" style="font-size:15px">delete_sweep</span> Clear Wallet
+        </button>
+      </div>
+    </form>
+
   </div>
 </div>
-@endsection
 
-@section('scripts')
 <script>
-const afModal=document.getElementById('af-modal');
-function openAddFunds(id,name){
-  document.getElementById('af-name').textContent=name;
-  document.getElementById('af-form').action=`/admin/users/${id}/add-funds`;
-  afModal.style.display='flex';
+var _currentUserId = null;
+
+function openFundsModal(type, userId, userName, balance) {
+  _currentUserId = userId;
+
+  // Reset all forms hidden
+  ['addForm','deductForm','emptyForm'].forEach(function(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id).reset();
+  });
+
+  var modal   = document.getElementById('fundsModal');
+  var icon    = document.getElementById('modalIcon');
+  var title   = document.getElementById('modalTitle');
+  var sub     = document.getElementById('modalSubtitle');
+  var bal     = document.getElementById('currentBalance');
+
+  bal.textContent = '$' + parseFloat(balance).toFixed(2);
+  sub.textContent = userName;
+
+  var baseUrl = '/admin/users/' + userId + '/';
+
+  if (type === 'add') {
+    title.textContent = 'Add Funds';
+    icon.style.background = 'var(--c-primary)';
+    icon.querySelector('span').textContent = 'add_circle';
+    var f = document.getElementById('addForm');
+    f.action = baseUrl + 'add-funds';
+    f.classList.remove('hidden');
+
+  } else if (type === 'deduct') {
+    title.textContent = 'Deduct Funds';
+    icon.style.background = '#b45309';
+    icon.querySelector('span').textContent = 'remove_circle';
+    document.getElementById('deductAmountInput').max = parseFloat(balance).toFixed(2);
+    var f = document.getElementById('deductForm');
+    f.action = baseUrl + 'deduct-funds';
+    f.classList.remove('hidden');
+
+  } else if (type === 'empty') {
+    title.textContent = 'Clear Wallet';
+    icon.style.background = 'var(--c-danger)';
+    icon.querySelector('span').textContent = 'delete_sweep';
+    var f = document.getElementById('emptyForm');
+    f.action = baseUrl + 'empty-funds';
+    f.classList.remove('hidden');
+  }
+
+  modal.classList.remove('hidden');
 }
-function closeAddFunds(){ afModal.style.display='none'; }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAddFunds(); });
+
+function closeFundsModal() {
+  document.getElementById('fundsModal').classList.add('hidden');
+}
 </script>
 @endsection
