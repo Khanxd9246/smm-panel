@@ -157,6 +157,89 @@ class AdminController extends Controller
         }
     }
 
+    public function usersDeductFunds(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:999999',
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $validated) {
+                $lockedUser    = User::lockForUpdate()->findOrFail($user->id);
+                $balanceBefore = (float) $lockedUser->funds;
+                $deduct        = min((float) $validated['amount'], $balanceBefore); // never go negative
+
+                $lockedUser->decrement('funds', $deduct);
+
+                Transaction::create([
+                    'user_id'     => $lockedUser->id,
+                    'amount'      => -$deduct,
+                    'type'        => 'deduction',
+                    'description' => 'Admin deduction: ' . $validated['reason'],
+                    'status'      => 'completed',
+                    'reference'   => 'admin_deduct_' . Auth::id() . '_' . time(),
+                    'gateway'     => 'admin',
+                ]);
+
+                $this->auditLog('deduct_funds', 'User', $lockedUser->id, [
+                    'balance_before' => $balanceBefore,
+                    'amount_deducted' => $deduct,
+                    'balance_after'   => $balanceBefore - $deduct,
+                    'reason'          => $validated['reason'],
+                ]);
+            });
+
+            Cache::forget('admin_dashboard_stats');
+            return back()->with('success', "Deducted \${$validated['amount']} from {$user->name}'s account.");
+
+        } catch (\Throwable $e) {
+            Log::error('Admin deduct funds failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to deduct funds. Please try again.']);
+        }
+    }
+
+    public function usersEmptyFunds(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $validated) {
+                $lockedUser    = User::lockForUpdate()->findOrFail($user->id);
+                $balanceBefore = (float) $lockedUser->funds;
+
+                if ($balanceBefore <= 0) return; // already empty
+
+                $lockedUser->update(['funds' => 0]);
+
+                Transaction::create([
+                    'user_id'     => $lockedUser->id,
+                    'amount'      => -$balanceBefore,
+                    'type'        => 'deduction',
+                    'description' => 'Admin cleared balance: ' . $validated['reason'],
+                    'status'      => 'completed',
+                    'reference'   => 'admin_empty_' . Auth::id() . '_' . time(),
+                    'gateway'     => 'admin',
+                ]);
+
+                $this->auditLog('empty_funds', 'User', $lockedUser->id, [
+                    'balance_before' => $balanceBefore,
+                    'balance_after'  => 0,
+                    'reason'         => $validated['reason'],
+                ]);
+            });
+
+            Cache::forget('admin_dashboard_stats');
+            return back()->with('success', "{$user->name}'s wallet has been cleared.");
+
+        } catch (\Throwable $e) {
+            Log::error('Admin empty funds failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to clear wallet. Please try again.']);
+        }
+    }
+
     public function usersBan(Request $request, User $user)
     {
         $validated = $request->validate(['reason' => 'required|string|min:5|max:255']);
@@ -428,9 +511,6 @@ class AdminController extends Controller
         if ($vis    = $request->get('visible'))     $query->where('admin_visible', $vis === '1');
         if ($search = $request->get('q'))           $query->search($search);
         if ($speed  = $request->get('speed'))       $query->where('delivery_speed', $speed);
-        if ($apiId = $request->get('api_id')) {
-            $query->where('api_service_id', (int) trim($apiId));
-        }
 
         $sortBy  = in_array($request->get('sort_by'), ['name','rate','admin_price','sort_order','orders_count'], true)
                    ? $request->get('sort_by') : 'sort_order';
@@ -456,15 +536,23 @@ class AdminController extends Controller
     {
         $visible = $request->boolean('visible');
         $service->update(['admin_visible' => $visible]);
-        // Bust caches so category lists update immediately for all users
+
+        // Auto-activate or deactivate the parent category (+ all sibling services when enabling)
+        $categoryUpdated = $this->syncCategoryVisibility($service->category_id, $visible);
+
+        // Bust caches
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
         $this->auditLog('service_visibility', 'Service', $service->id, ['admin_visible' => $visible]);
 
         if ($request->expectsJson()) {
-            return response()->json(['ok' => true, 'admin_visible' => $visible]);
+            return response()->json(['ok' => true, 'admin_visible' => $visible, 'category_status' => $categoryUpdated]);
         }
-        return back()->with('success', 'Service ' . ($visible ? 'shown to' : 'hidden from') . ' users.');
+
+        $msg = 'Service ' . ($visible ? 'enabled and visible to users' : 'hidden from users');
+        if ($categoryUpdated === 'activated')   $msg .= ' — category also activated automatically';
+        if ($categoryUpdated === 'deactivated') $msg .= ' — category deactivated (no visible services remain)';
+        return back()->with('success', $msg);
     }
 
     /**
@@ -479,12 +567,21 @@ class AdminController extends Controller
             'visible' => 'required|boolean',
         ]);
 
-        $count = Service::whereIn('id', $request->ids)
-                         ->update(['admin_visible' => $request->boolean('visible')]);
+        $affectedServices = Service::whereIn('id', $request->ids)->get(['id', 'category_id']);
+        $affectedServices->each->update(['admin_visible' => $request->boolean('visible')]);
+        $count = $affectedServices->count();
+
+        // Auto-sync every affected category (enabling = all sibling services also enabled)
+        $enabling = $request->boolean('visible');
+        $affectedCategoryIds = $affectedServices->pluck('category_id')->unique();
+        foreach ($affectedCategoryIds as $catId) {
+            $this->syncCategoryVisibility($catId, $enabling);
+        }
 
         $this->auditLog('bulk_visibility', 'Service', null, [
-            'count'   => $count,
-            'visible' => $request->boolean('visible'),
+            'count'      => $count,
+            'visible'    => $request->boolean('visible'),
+            'categories' => $affectedCategoryIds->values(),
         ]);
 
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
@@ -492,7 +589,7 @@ class AdminController extends Controller
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'updated' => $count]);
         }
-        return back()->with('success', $count . ' service(s) updated.');
+        return back()->with('success', $count . ' service(s) updated — categories synced automatically.');
     }
 
     /**
@@ -522,8 +619,12 @@ class AdminController extends Controller
 
         $service->update($validated);
 
-        // Bust the category services cache so the new data is served immediately
-        // Bust per-category services cache AND the visible-categories list cache
+        // Auto-sync parent category if visibility was part of this update
+        if (array_key_exists('admin_visible', $validated)) {
+            $this->syncCategoryVisibility($service->category_id, (bool) ($validated['admin_visible'] ?? false));
+        }
+
+        // Bust caches
         \Illuminate\Support\Facades\Cache::forget("services_cat_{$service->category_id}_admin");
         \Illuminate\Support\Facades\Cache::forget('active_categories_visible');
 
@@ -680,6 +781,57 @@ class AdminController extends Controller
     }
 
     // ── Private Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Auto-activate or deactivate a category based on whether it has
+     * any admin_visible services. Returns 'activated', 'deactivated', or 'unchanged'.
+     */
+    /**
+     * When enabling: activate ALL active services in the category + activate the category.
+     * When disabling: only deactivate the category if zero visible services remain.
+     * Returns 'activated', 'deactivated', or 'unchanged'.
+     */
+    private function syncCategoryVisibility(int $categoryId, bool $enabling = true): string
+    {
+        $category = \App\Models\Category::find($categoryId);
+        if (!$category) return 'unchanged';
+
+        if ($enabling) {
+            // Enable EVERY active service in this category, not just the one toggled
+            $enabledCount = \App\Models\Service::where('category_id', $categoryId)
+                ->where('status', 'active')
+                ->where('admin_visible', false)
+                ->update(['admin_visible' => true]);
+
+            // Activate the category itself
+            $category->update(['status' => 'active']);
+
+            // Bust per-category services cache
+            \Illuminate\Support\Facades\Cache::forget("services_cat_{$categoryId}_admin");
+
+            $this->auditLog('auto_sync_category', 'Category', $categoryId, [
+                'status'          => 'active',
+                'services_enabled' => $enabledCount,
+            ]);
+
+            return 'activated';
+        }
+
+        // Disabling — only deactivate category if no visible services remain
+        $hasVisibleServices = \App\Models\Service::where('category_id', $categoryId)
+            ->where('status', 'active')
+            ->where('admin_visible', true)
+            ->exists();
+
+        if (!$hasVisibleServices) {
+            $category->update(['status' => 'inactive']);
+            \Illuminate\Support\Facades\Cache::forget("services_cat_{$categoryId}_admin");
+            $this->auditLog('auto_sync_category', 'Category', $categoryId, ['status' => 'inactive']);
+            return 'deactivated';
+        }
+
+        return 'unchanged';
+    }
 
     private function auditLog(string $action, string $targetType, int $targetId, array $data): void
     {
