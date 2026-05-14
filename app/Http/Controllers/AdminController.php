@@ -265,23 +265,65 @@ class AdminController extends Controller
             }
 
             $api    = new \App\Services\ProviderApiService($order->service->apiProvider);
-            $status = $api->getOrderStatus($order->api_order_id);
+            $result = $api->getStatus((int) $order->api_order_id);
 
-            if (!$status || !isset($status['status'])) {
+            if (!$result || !isset($result['status'])) {
                 return back()->withErrors(['error' => "Provider returned no status for order #{$order->id}."]);
             }
 
-            $oldStatus = $order->status;
-            $newStatus = strtolower($status['status']);
-            $order->update(['status' => $newStatus]);
+            $oldStatus  = $order->status;
+            $rawStatus  = strtolower(trim($result['status']));
 
-            $this->auditLog('sync_order', 'Order', $order->id, ['from' => $oldStatus, 'to' => $newStatus]);
+            // Normalise provider status strings → our internal values
+            $newStatus = match(true) {
+                in_array($rawStatus, ['completed', 'complete'])          => 'completed',
+                in_array($rawStatus, ['cancelled', 'canceled'])          => 'cancelled',
+                in_array($rawStatus, ['partial'])                        => 'partial',
+                in_array($rawStatus, ['inprogress', 'in progress',
+                                      'processing', 'active'])           => 'in progress',
+                in_array($rawStatus, ['pending'])                        => 'pending',
+                default                                                  => $rawStatus,
+            };
+
+            $startCount = isset($result['start_count']) ? (int) $result['start_count'] : $order->start_count;
+            $remains    = isset($result['remains'])     ? (int) $result['remains']     : $order->remains;
+
+            $order->update([
+                'status'      => $newStatus,
+                'remains'     => $remains,
+                'start_count' => $startCount,
+            ]);
+
+            $this->auditLog('sync_order', 'Order', $order->id, [
+                'from'        => $oldStatus,
+                'to'          => $newStatus,
+                'remains'     => $remains,
+                'start_count' => $startCount,
+            ]);
             Cache::forget('admin_dashboard_stats');
 
-            return back()->with('success', "Order #{$order->id} synced: {$oldStatus} → {$newStatus}.");
+            $msg = $oldStatus !== $newStatus
+                ? "Order #{$order->id}: {$oldStatus} → {$newStatus}."
+                : "Order #{$order->id} is up to date ({$newStatus}).";
+
+            // JSON response so the orders page can update the row live without reload
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'message'     => $msg,
+                    'status'      => $newStatus,
+                    'remains'     => $remains,
+                    'start_count' => $startCount,
+                    'quantity'    => $order->quantity,
+                ]);
+            }
+
+            return back()->with('success', $msg);
 
         } catch (\Throwable $e) {
             Log::error("Admin orderSync failed for order #{$order->id}: " . $e->getMessage());
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['error' => "Sync failed: {$e->getMessage()}"], 422);
+            }
             return back()->withErrors(['error' => "Sync failed: {$e->getMessage()}"]);
         }
     }
@@ -457,26 +499,93 @@ class AdminController extends Controller
     {
         try {
             $updated = 0;
-            $orders  = \App\Models\Order::whereIn('status', ['pending', 'in progress'])
-                ->whereNotNull('api_order_id')->get();
+            $failed  = 0;
 
-            foreach ($orders as $order) {
+            // Group active orders by provider to use bulk status API
+            $orders = \App\Models\Order::with(['service.apiProvider'])
+                ->whereIn('status', ['pending', 'in progress'])
+                ->whereNotNull('api_order_id')
+                ->get();
+
+            // Group by provider
+            $byProvider = $orders->groupBy(fn ($o) => $o->service?->apiProvider?->id);
+
+            foreach ($byProvider as $providerId => $providerOrders) {
+                if (!$providerId) continue;
+
+                $provider = $providerOrders->first()->service->apiProvider;
+
                 try {
-                    if ($order->service && $order->service->apiProvider) {
-                        $api    = new \App\Services\ProviderApiService($order->service->apiProvider);
-                        $status = $api->getOrderStatus($order->api_order_id);
-                        if ($status && isset($status['status'])) {
-                            $order->update(['status' => strtolower($status['status'])]);
-                            $updated++;
-                        }
+                    $ids    = $providerOrders->pluck('api_order_id')->map(fn ($id) => (int) $id)->all();
+                    $api    = new \App\Services\ProviderApiService($provider);
+                    $result = $api->getStatusBulk($ids);
+
+                    foreach ($providerOrders as $order) {
+                        $data = $result[(string) $order->api_order_id]
+                             ?? $result[$order->api_order_id]
+                             ?? null;
+
+                        if (!$data || !isset($data['status'])) continue;
+
+                        $rawStatus = strtolower(trim($data['status']));
+                        $newStatus = match(true) {
+                            in_array($rawStatus, ['completed', 'complete'])       => 'completed',
+                            in_array($rawStatus, ['cancelled', 'canceled'])       => 'cancelled',
+                            in_array($rawStatus, ['partial'])                     => 'partial',
+                            in_array($rawStatus, ['inprogress', 'in progress',
+                                                  'processing', 'active'])        => 'in progress',
+                            default                                               => $rawStatus,
+                        };
+
+                        $order->update([
+                            'status'      => $newStatus,
+                            'remains'     => isset($data['remains'])     ? (int) $data['remains']     : $order->remains,
+                            'start_count' => isset($data['start_count']) ? (int) $data['start_count'] : $order->start_count,
+                        ]);
+
+                        $updated++;
                     }
                 } catch (\Throwable $e) {
-                    Log::warning("syncOrders: order #{$order->id} failed: " . $e->getMessage());
+                    // Bulk failed — fall back to individual calls for this provider
+                    foreach ($providerOrders as $order) {
+                        try {
+                            $api    = new \App\Services\ProviderApiService($provider);
+                            $data   = $api->getStatus((int) $order->api_order_id);
+
+                            if (!isset($data['status'])) continue;
+
+                            $rawStatus = strtolower(trim($data['status']));
+                            $newStatus = match(true) {
+                                in_array($rawStatus, ['completed', 'complete'])   => 'completed',
+                                in_array($rawStatus, ['cancelled', 'canceled'])   => 'cancelled',
+                                in_array($rawStatus, ['partial'])                 => 'partial',
+                                in_array($rawStatus, ['inprogress', 'in progress',
+                                                      'processing', 'active'])    => 'in progress',
+                                default                                           => $rawStatus,
+                            };
+
+                            $order->update([
+                                'status'      => $newStatus,
+                                'remains'     => isset($data['remains'])     ? (int) $data['remains']     : $order->remains,
+                                'start_count' => isset($data['start_count']) ? (int) $data['start_count'] : $order->start_count,
+                            ]);
+
+                            $updated++;
+                        } catch (\Throwable $inner) {
+                            $failed++;
+                            Log::warning("syncOrders fallback failed for order #{$order->id}: " . $inner->getMessage());
+                        }
+                    }
                 }
             }
 
             Cache::forget('admin_dashboard_stats');
-            return response()->json(['message' => "Updated {$updated} orders."]);
+            return response()->json([
+                'message' => "Synced {$updated} orders." . ($failed ? " ({$failed} failed)" : ''),
+                'updated' => $updated,
+                'failed'  => $failed,
+            ]);
+
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Order sync failed: ' . $e->getMessage()], 500);
         }
