@@ -157,6 +157,53 @@ class AdminController extends Controller
         }
     }
 
+    public function usersDeductFunds(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:10000',
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $validated) {
+                $lockedUser    = User::lockForUpdate()->findOrFail($user->id);
+                $balanceBefore = $lockedUser->funds;
+
+                if ($lockedUser->funds < $validated['amount']) {
+                    throw new \RuntimeException('Insufficient balance. User only has $' . number_format($lockedUser->funds, 2) . '.');
+                }
+
+                $lockedUser->decrement('funds', $validated['amount']);
+
+                Transaction::create([
+                    'user_id'     => $lockedUser->id,
+                    'amount'      => $validated['amount'],
+                    'type'        => 'deduction',
+                    'description' => 'Admin deduction: ' . $validated['reason'],
+                    'status'      => 'completed',
+                    'reference'   => 'admin_deduct_' . Auth::id() . '_' . time(),
+                    'gateway'     => 'admin',
+                ]);
+
+                $this->auditLog('deduct_funds', 'User', $lockedUser->id, [
+                    'balance_before' => $balanceBefore,
+                    'amount_deducted' => $validated['amount'],
+                    'balance_after'  => $balanceBefore - $validated['amount'],
+                    'reason'         => $validated['reason'],
+                ]);
+            });
+
+            Cache::forget('admin_dashboard_stats');
+            return back()->with('success', "Deducted \${$validated['amount']} from {$user->name}'s account.");
+
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Admin deduct funds failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to deduct funds. Please try again.']);
+        }
+    }
+
     public function usersBan(Request $request, User $user)
     {
         $validated = $request->validate(['reason' => 'required|string|min:5|max:255']);
