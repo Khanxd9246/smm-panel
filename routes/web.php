@@ -159,6 +159,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/',                [AdminController::class, 'ordersIndex'])->name('index');
         Route::patch('{order}/status', [AdminController::class, 'ordersUpdateStatus'])->name('status');
+        Route::post('sync-all',        [AdminController::class, 'syncAll'])->name('sync_all');
     });
 
     // Users
