@@ -160,6 +160,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/',                [AdminController::class, 'ordersIndex'])->name('index');
         Route::patch('{order}/status', [AdminController::class, 'ordersUpdateStatus'])->name('status');
         Route::post('sync-all',        [AdminController::class, 'syncAll'])->name('sync_all');
+        Route::post('{order}/sync',    [AdminController::class, 'orderSync'])->name('sync');
+        Route::post('{order}/cancel',  [AdminController::class, 'orderCancel'])->name('cancel');
     });
 
     // Users
