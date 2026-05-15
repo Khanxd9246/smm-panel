@@ -88,7 +88,7 @@
     <p style="font-size:13px;color:var(--c-muted)">
       <span style="color:var(--c-text);font-weight:700">{{ $orders->total() }}</span> orders total
     </p>
-    <button id="syncAllBtn" class="btn-ghost" onclick="syncAll()">
+    <button id="syncAllBtn" class="btn-ghost" onclick="syncAll()" data-url="{{ route('admin.sync.orders') }}">
       <span class="material-symbols-outlined">sync</span> Sync All
     </button>
   </div>
@@ -222,7 +222,7 @@
 
 @endsection
 
-@section('js')
+@section('scripts')
 <script>
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '{{ csrf_token() }}';
 
@@ -283,7 +283,7 @@ async function syncAll() {
   btn.disabled = true;
 
   try {
-    const res  = await fetch('{{ route("admin.sync.orders") }}', {
+    const res  = await fetch(btn.dataset.url, {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
     });
