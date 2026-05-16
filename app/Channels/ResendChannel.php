@@ -2,42 +2,31 @@
 
 namespace App\Channels;
 
-use App\Services\BrevoMailService;
+use App\Services\ResendMailService;
 use Illuminate\Notifications\Notification;
 
-/**
- * ResendChannel (Now routing via Brevo HTTP API)
- *
- * A custom notification channel that sends via Brevo HTTP API.
- * Completely bypasses Laravel's MailChannel and SMTP stack.
- *
- * Notifications using this channel must implement toResend().
- */
 class ResendChannel
 {
-    private $mailer;
+    protected $mailer;
 
-    // Use a backward-compatible constructor for older PHP versions
-    public function __construct(BrevoMailService $mailer)
+    public function __construct(ResendMailService $mailer)
     {
         $this->mailer = $mailer;
     }
 
-    public function send($notifiable, Notification $notification): void
+    public function send($notifiable, Notification $notification)
     {
-        // Keep toResend() call so you don't have to change your Notification classes
         $message = $notification->toResend($notifiable);
 
         if (empty($message) || empty($notifiable->email)) {
             return;
         }
 
-        // Passed strictly as ordered, positional arguments for PHP compatibility
         $this->mailer->send(
             $notifiable->email,
             $message['subject'],
             $message['view'],
-            $message['data'] ?? []
+            isset($message['data']) ? $message['data'] : []
         );
     }
 }
