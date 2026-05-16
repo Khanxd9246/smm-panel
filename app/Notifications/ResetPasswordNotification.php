@@ -12,17 +12,17 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
     use Queueable;
 
     /**
-     * Use our custom ResendChannel instead of the built-in 'mail' channel.
+     * Use our custom ResendChannel (now powered by Brevo).
      */
-    public function via(mixed $notifiable): array
+    public function via($notifiable): array
     {
         return [ResendChannel::class];
     }
 
     /**
-     * Build the message data for ResendChannel.
+     * Build the message data for the channel.
      */
-    public function toResend(mixed $notifiable): array
+    public function toResend($notifiable): array
     {
         $url = $this->resetUrl($notifiable);
 
@@ -37,9 +37,9 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
     }
 
     /**
-     * Build the password reset URL (mirrors Laravel base class logic).
+     * Build the password reset URL.
      */
-    protected function resetUrl(mixed $notifiable): string
+    protected function resetUrl($notifiable): string
     {
         if (static::$createUrlCallback) {
             return call_user_func(static::$createUrlCallback, $notifiable, $this->token);
