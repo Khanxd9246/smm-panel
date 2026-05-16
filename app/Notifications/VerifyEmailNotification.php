@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Channels\ResendChannel;
+use App\Channels\BrevoChannel;
 use Illuminate\Auth\Notifications\VerifyEmail as BaseVerifyEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,12 +14,12 @@ class VerifyEmailNotification extends BaseVerifyEmail implements ShouldQueue
 {
     use Queueable;
 
-    public function via($notifiable): array
+    public function via(mixed $notifiable): array
     {
-        return [ResendChannel::class];
+        return [BrevoChannel::class];
     }
 
-    public function toResend($notifiable): array
+    public function toBrevo(mixed $notifiable): array
     {
         $url = URL::temporarySignedRoute(
             'verification.verify',

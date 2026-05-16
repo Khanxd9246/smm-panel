@@ -1,8 +1,9 @@
 <?php
 
 return [
-    // Resend HTTP API — set RESEND_API_KEY=re_xxx in Railway Variables
-    'resend'   => ['api_key' => env('RESEND_API_KEY')],
+    // Brevo HTTP API — set BREVO_API_KEY=xkeysib-xxx in Railway Variables
+    // Get it from: brevo.com → SMTP & API → API Keys tab
+    'brevo'    => ['api_key' => env('BREVO_API_KEY')],
 
     'mailgun'  => ['domain' => env('MAILGUN_DOMAIN'), 'secret' => env('MAILGUN_SECRET'), 'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'), 'scheme' => 'https'],
     'postmark' => ['token' => env('POSTMARK_TOKEN')],

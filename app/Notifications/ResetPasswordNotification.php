@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Channels\ResendChannel;
+use App\Channels\BrevoChannel;
 use Illuminate\Auth\Notifications\ResetPassword as BaseResetPassword;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,12 +11,12 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
 {
     use Queueable;
 
-    public function via($notifiable): array
+    public function via(mixed $notifiable): array
     {
-        return [ResendChannel::class];
+        return [BrevoChannel::class];
     }
 
-    public function toResend($notifiable): array
+    public function toBrevo(mixed $notifiable): array
     {
         $url = $this->resetUrl($notifiable);
 
@@ -30,7 +30,7 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
         ];
     }
 
-    protected function resetUrl($notifiable): string
+    protected function resetUrl(mixed $notifiable): string
     {
         if (static::$createUrlCallback) {
             return call_user_func(static::$createUrlCallback, $notifiable, $this->token);

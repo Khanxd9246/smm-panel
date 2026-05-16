@@ -3,29 +3,19 @@
 namespace App\Mail;
 
 use App\Models\Order;
-use App\Services\ResendMailService;
+use App\Services\BrevoMailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-/**
- * OrderCompleted — sends order completion email via Resend HTTP API.
- * Same pattern as OrderPlaced — bypasses SMTP/Mailable stack entirely.
- *
- * Usage:
- *   dispatch(new OrderCompleted($order));
- */
 class OrderCompleted implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public function __construct(public Order $order) {}
 
-    /**
-     * Handle the job — called by the queue worker.
-     */
-    public function handle(ResendMailService $mailer): void
+    public function handle(BrevoMailService $mailer): void
     {
         $user = $this->order->user;
 
