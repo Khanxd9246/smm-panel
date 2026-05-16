@@ -1,211 +1,115 @@
 <?php
 
-namespace App\Models;
+namespace App\Http\Controllers\Auth;
 
-// ============================================================================
-// User Model — Security-Hardened
-// ============================================================================
-// Changes from original:
-//  1. Added `status` to $hidden — banned users shouldn't see their own status
-//     in API responses (prevents probing bans)
-//  2. Added login throttling fields: failed_login_attempts, locked_until
-//  3. Referral code generation now uses random_bytes (CSPRNG) instead of MD5
-//  4. Added isLocked() helper for login controller
-//  5. Added 2FA support fields with helper methods
-//  6. Proper decimal cast for funds (float cast is sufficient for display,
-//     but all DB operations use DECIMAL arithmetic)
-// ============================================================================
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Notifications\VerifyEmailNotification;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-
-class User extends Authenticatable implements MustVerifyEmail
+/**
+ * LoginController
+ *
+ * FIXES:
+ * - CRITICAL-4: Open redirect via redirect_to parameter — now validates to local paths only
+ * - Added proper session regeneration
+ * - Rate limiting is applied via route definition (throttle:login)
+ */
+class LoginController extends Controller
 {
-    use HasFactory, Notifiable, SoftDeletes;
-
-    /**
-     * Mass-assignable attributes.
-     *
-     * SECURITY: is_admin, funds, status are intentionally EXCLUDED.
-     * These must be set via explicit assignment:
-     *   $user->is_admin = true; $user->save();
-     *   $user->increment('funds', 10.00);
-     *
-     * Never add is_admin or funds here — a malicious request could
-     * send {"is_admin": true} during registration if they were fillable.
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'referral_code',
-        'referred_by',
-        'telegram_user_id',
-    ];
-
-    protected $hidden = [
-        'password',
-        'remember_token',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
-    ];
-
-    protected $casts = [
-        'email_verified_at'       => 'datetime',
-        'funds'                   => 'decimal:6',
-        'is_admin'                => 'boolean',
-        'failed_login_attempts'   => 'integer',
-        'locked_until'            => 'datetime',
-        'last_login_at'           => 'datetime',
-        'two_factor_confirmed_at' => 'datetime',
-        'created_at'              => 'datetime',
-        'updated_at'              => 'datetime',
-        'deleted_at'              => 'datetime',
-    ];
-
-    protected static function booted(): void
+    public function __construct()
     {
-        static::creating(function (User $user) {
-            // SECURITY: Use CSPRNG for referral code, not MD5
-            // Original: md5($email . time()) — predictable and collision-prone
-            // Fixed: bin2hex(random_bytes(6)) — 48 bits of entropy, URL-safe
-            if (empty($user->referral_code)) {
-                $user->referral_code = strtoupper(bin2hex(random_bytes(6)));
-            }
-        });
+        $this->middleware('guest')->except('logout');
     }
 
-    // ── Login Security Helpers ────────────────────────────────────────────────
-
-    /**
-     * Check if the account is currently locked due to failed login attempts.
-     * Called in LoginController before attempting authentication.
-     */
-    public function isLocked(): bool
+    public function showLoginForm()
     {
-        return $this->locked_until !== null && $this->locked_until->isFuture();
+        return view('auth.login');
     }
 
-    /**
-     * Record a failed login attempt. Lock account after 5 failures.
-     * Lock duration increases: 5 min, 15 min, 1 hour, 24 hours.
-     */
-    public function recordFailedLogin(): void
+    public function login(Request $request)
     {
-        $attempts = $this->failed_login_attempts + 1;
-        $updates  = ['failed_login_attempts' => $attempts];
+        $validated = $request->validate([
+            'email'    => 'required|email|max:255',
+            'password' => 'required|min:8|max:128',
+        ]);
 
-        if ($attempts >= 5) {
-            $lockMinutes = match (true) {
-                $attempts >= 20 => 1440, // 24 hours
-                $attempts >= 10 => 60,
-                $attempts >= 7  => 15,
-                default         => 5,
-            };
-            $updates['locked_until'] = now()->addMinutes($lockMinutes);
+        $email = Str::lower(trim($validated['email']));
+        $password = $validated['password'];
+
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if ($user?->status === 'banned') {
+            Log::warning('Banned user attempted login', ['email' => $user->email, 'ip' => $request->ip()]);
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'This account has been suspended. Contact support.']);
         }
 
-        $this->update($updates);
+        if ($user?->isLocked()) {
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Your account is temporarily locked due to too many failed login attempts. Please try again later.']);
+        }
+
+        if (! $user || ! Hash::check($password, $user->password)) {
+            $user?->recordFailedLogin();
+            Log::warning('Failed login attempt', ['email' => $validated['email'], 'ip' => $request->ip()]);
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Invalid email or password.']);
+        }
+
+        // Block login if email not verified
+        if (!$user->hasVerifiedEmail()) {
+            // Resend verification so they don't have to find the old email
+            $user->sendEmailVerificationNotification();
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Please verify your email address before logging in. A new verification link has been sent.']);
+        }
+
+        Auth::login($user, $request->boolean('remember'));
+        $request->session()->regenerate();
+        $user->recordSuccessfulLogin($request->ip());
+
+        Log::info('User logged in', ['user_id' => $user->id, 'ip' => $request->ip()]);
+
+        // FIXED: Validate redirect_to is a relative local path only — prevents open redirect
+        $intended = $request->input('redirect_to', '');
+        if (! $this->isSafeRedirect($intended)) {
+            $intended = route('dashboard');
+        }
+
+        return redirect()->intended($intended);
+    }
+
+    public function logout(Request $request)
+    {
+        Log::info('User logged out', ['user_id' => Auth::id()]);
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/');
     }
 
     /**
-     * Reset login attempt counter after successful authentication.
+     * Only allow same-origin relative redirects.
+     * Blocks: https://evil.com, //evil.com, javascript:alert(1)
      */
-    public function recordSuccessfulLogin(string $ip): void
+    private function isSafeRedirect(string $url): bool
     {
-        $this->update([
-            'failed_login_attempts' => 0,
-            'locked_until'          => null,
-            'last_login_at'         => now(),
-            'last_login_ip'         => $ip,
-        ]);
+        if (empty($url)) {
+            return false;
+        }
+        // Must start with a single slash (relative path), no protocol or double-slash
+        return (bool) preg_match('#^/(?!/)#', $url);
     }
-
-    // ── 2FA Helpers ───────────────────────────────────────────────────────────
-
-    public function hasTwoFactorEnabled(): bool
-    {
-        return $this->two_factor_secret !== null
-            && $this->two_factor_confirmed_at !== null;
-    }
-
-    // ── Relationships ─────────────────────────────────────────────────────────
-
-    public function orders(): HasMany
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    public function transactions(): HasMany
-    {
-        return $this->hasMany(Transaction::class);
-    }
-
-    public function fundRequests(): HasMany
-    {
-        return $this->hasMany(Transaction::class)
-            ->where('type', 'deposit')
-            ->whereNotNull('fund_account_id');
-    }
-
-    public function tickets(): HasMany
-    {
-        return $this->hasMany(Ticket::class);
-    }
-
-    public function ticketMessages(): HasMany
-    {
-        return $this->hasMany(TicketMessage::class);
-    }
-
-    public function referrals(): HasMany
-    {
-        return $this->hasMany(User::class, 'referred_by');
-    }
-
-    public function referrer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'referred_by');
-    }
-
-    // ── Scopes ────────────────────────────────────────────────────────────────
-
-    public function scopeActive($query)
-    {
-        return $query->where('status', 'active');
-    }
-
-    public function scopeAdmins($query)
-    {
-        return $query->where('is_admin', true);
-    }
-
-    // ── Custom Notifications ──────────────────────────────────────────────────
-
-    public function sendPasswordResetNotification($token): void
-    {
-        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
-    }
-    /**
-     * Override the default verification email with our custom branded HTML version.
-     */
-    public function sendEmailVerificationNotification(): void
-    {
-        $this->notify(new VerifyEmailNotification());
-    }
-
-    /**
-     * Send the password reset notification with our custom branded HTML email.
-     */
-    public function sendPasswordResetNotification($token): void
-    {
-        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
-    }
-
 }
