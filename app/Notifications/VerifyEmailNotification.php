@@ -14,17 +14,11 @@ class VerifyEmailNotification extends BaseVerifyEmail implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Use our custom ResendChannel (now powered by Brevo).
-     */
     public function via($notifiable): array
     {
         return [ResendChannel::class];
     }
 
-    /**
-     * Build the message data for the channel.
-     */
     public function toResend($notifiable): array
     {
         $url = URL::temporarySignedRoute(
