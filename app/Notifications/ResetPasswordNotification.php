@@ -11,17 +11,11 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Use our custom ResendChannel (now powered by Brevo).
-     */
     public function via($notifiable): array
     {
         return [ResendChannel::class];
     }
 
-    /**
-     * Build the message data for the channel.
-     */
     public function toResend($notifiable): array
     {
         $url = $this->resetUrl($notifiable);
@@ -36,9 +30,6 @@ class ResetPasswordNotification extends BaseResetPassword implements ShouldQueue
         ];
     }
 
-    /**
-     * Build the password reset URL.
-     */
     protected function resetUrl($notifiable): string
     {
         if (static::$createUrlCallback) {
