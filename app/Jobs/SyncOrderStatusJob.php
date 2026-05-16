@@ -12,7 +12,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class SyncOrderStatusJob implements ShouldQueue
 {
@@ -105,7 +104,7 @@ class SyncOrderStatusJob implements ShouldQueue
     {
         try {
             if ($order->user && $order->user->email) {
-                Mail::to($order->user->email)->queue(new OrderCompleted($order));
+                dispatch(new OrderCompleted($order));
                 Log::info("SyncOrderStatusJob: completion email queued for order#{$order->id} → {$order->user->email}");
             }
         } catch (\Throwable $e) {

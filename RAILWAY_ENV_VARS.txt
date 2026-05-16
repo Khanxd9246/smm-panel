@@ -50,6 +50,7 @@ MAIL_PASSWORD=your_brevo_smtp_key
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@yourdomain.com
 MAIL_FROM_NAME=SMM Elite
+BREVO_API_KEY=your_brevo_v3_api_key           # Required by app/Services/ResendMailService.php — get from Brevo > API Keys > v3 API Key
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
 STRIPE_KEY=pk_live_xxxx

@@ -53,7 +53,15 @@ class ResendMailService
                 'htmlContent' => $html,
             ]);
 
-            return $response->successful();
+            if (!$response->successful()) {
+                Log::error('ResendMailService: Brevo API error', [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+                return false;
+            }
+
+            return true;
         } catch (\Throwable $e) {
             Log::error('ResendMailService: HTTP exception', ['error' => $e->getMessage()]);
             return false;
