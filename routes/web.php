@@ -55,21 +55,25 @@ Route::post('/password/update', [ResetPasswordController::class, 'reset'])
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── Email verification ────────────────────────────────────────────────────
+
+// Show "check your email" page — requires auth (user just registered)
 Route::middleware('auth')->group(function () {
     Route::get('/email/verify', function () {
         return view('auth.verify-email');
     })->name('verification.notice');
-
-    Route::get('/email/verify/{id}/{hash}',
-        [\App\Http\Controllers\Auth\VerifyEmailController::class, '__invoke'])
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
 
     Route::post('/email/verification-notification',
         [\App\Http\Controllers\Auth\EmailVerificationController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
 });
+
+// Verify link — NO auth middleware so users can click without logging in first.
+// VerifyEmailController validates the signed URL and auto-logs the user in.
+Route::get('/email/verify/{id}/{hash}',
+    [\App\Http\Controllers\Auth\VerifyEmailController::class, '__invoke'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
