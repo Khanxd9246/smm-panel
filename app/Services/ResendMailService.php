@@ -7,34 +7,96 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 
 /**
- * ResendMailService
+ * BrevoMailService
  *
- * Sends email via Resend's HTTP API (api.resend.com:443).
- * This bypasses SMTP entirely — no port 465/587 needed.
- * Railway (and most cloud platforms) never block port 443.
+ * Sends email via Brevo's transactional HTTP API (api.brevo.com:443).
+ * Bypasses SMTP entirely — safe for Railway and cloud environments.
  *
  * Required env vars:
- *   RESEND_API_KEY=re_xxxxxxxxxxxx
+ *   BREVO_API_KEY=xkeysib-xxxxxxxxxxxx
  *   MAIL_FROM_ADDRESS=noreply@yourdomain.com
  *   MAIL_FROM_NAME=SMM Elite
- *
- * Usage:
- *   app(ResendMailService::class)->send(
- *       to: 'user@example.com',
- *       subject: 'Hello',
- *       view: 'emails.verify-email',
- *       data: ['url' => '...', 'appName' => '...']
- *   );
  */
-class ResendMailService
+class BrevoMailService
 {
-    private const API_URL = 'https://api.resend.com/emails';
+    private const API_URL = 'https://api.brevo.com/v3/smtp/email';
 
     public function send(
         string $to,
         string $subject,
         string $view,
         array  $data = [],
+        ?string $fromAddress = null,
+        ?string $fromName = null,
+    ): bool {
+        $apiKey = config('services.brevo.api_key') ?? env('BREVO_API_KEY');
+
+        if (empty($apiKey)) {
+            Log::error('BrevoMailService: BREVO_API_KEY is not set. Email not sent.', [
+                'to'      => $to,
+                'subject' => $subject,
+            ]);
+            return false;
+        }
+
+        $finalFromAddress = $fromAddress ?? config('mail.from.address', 'noreply@smmelite.com');
+        $finalFromName    = $fromName    ?? config('mail.from.name',    'SMM Elite');
+
+        try {
+            if ($view === 'raw_html_string') {
+                $html = $data['raw_html'] ?? '';
+            } else {
+                $html = View::make($view, $data)->render();
+            }
+        } catch (\Throwable $e) {
+            Log::error('BrevoMailService: failed to render view', [
+                'view'  => $view,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'api-key'      => $apiKey,
+                'accept'       => 'application/json',
+                'content-type' => 'application/json',
+            ])
+            ->timeout(10)
+            ->post(self::API_URL, [
+                'sender'      => ['name' => $finalFromName, 'email' => $finalFromAddress],
+                'to'          => [['email' => $to]],
+                'subject'     => $subject,
+                'htmlContent' => $html,
+            ]);
+
+            if ($response->successful()) {
+                Log::info('BrevoMailService: email sent', [
+                    'to'      => $to,
+                    'subject' => $subject,
+                    'messageId' => $response->json('messageId'),
+                ]);
+                return true;
+            }
+
+            Log::error('BrevoMailService: API error', [
+                'to'      => $to,
+                'subject' => $subject,
+                'status'  => $response->status(),
+                'body'    => $response->body(),
+            ]);
+            return false;
+
+        } catch (\Throwable $e) {
+            Log::error('BrevoMailService: HTTP exception', [
+                'to'      => $to,
+                'subject' => $subject,
+                'error'   => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+}        array  $data = [],
         ?string $fromAddress = null,
         ?string $fromName = null,
     ): bool {
