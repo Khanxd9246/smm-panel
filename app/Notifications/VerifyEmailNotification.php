@@ -15,18 +15,17 @@ class VerifyEmailNotification extends BaseVerifyEmail implements ShouldQueue
     use Queueable;
 
     /**
-     * Use our custom ResendChannel instead of the built-in 'mail' channel.
-     * This bypasses MailChannel entirely — no SMTP, no toMail() needed.
+     * Use our custom ResendChannel (now powered by Brevo).
      */
-    public function via(mixed $notifiable): array
+    public function via($notifiable): array
     {
         return [ResendChannel::class];
     }
 
     /**
-     * Build the message data for ResendChannel.
+     * Build the message data for the channel.
      */
-    public function toResend(mixed $notifiable): array
+    public function toResend($notifiable): array
     {
         $url = URL::temporarySignedRoute(
             'verification.verify',
