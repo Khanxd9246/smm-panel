@@ -339,5 +339,63 @@ function updateProgress(id, data) {
     }
   }
 }
+/* ── Auto-sync ────────────────────────────────────────────────── */
+let autoSyncTimer = null;
+const AUTO_SYNC_INTERVAL = 30000; // 30 seconds
+
+function setAutoSync(enabled) {
+  clearInterval(autoSyncTimer);
+  localStorage.setItem('autoSync', enabled ? '1' : '0');
+  const toggle    = document.getElementById('autoSyncToggle');
+  const indicator = document.getElementById('autoSyncStatus');
+  const track     = document.getElementById('autoSyncTrack');
+  const thumb     = document.getElementById('autoSyncThumb');
+  if (track && thumb) {
+    track.style.background = enabled ? 'var(--c-accent)' : '#1e2235';
+    thumb.style.left       = enabled ? '22px' : '2px';
+    thumb.style.background = enabled ? '#fff' : 'var(--c-muted)';
+  }
+  if (enabled) {
+    toggle.checked = true;
+    indicator.textContent = 'Auto-sync ON (every 30s)';
+    indicator.style.color = 'var(--c-accent)';
+    autoSyncTimer = setInterval(autoSyncTick, AUTO_SYNC_INTERVAL);
+  } else {
+    toggle.checked = false;
+    indicator.textContent = 'Auto-sync OFF';
+    indicator.style.color = 'var(--c-muted)';
+  }
+}
+
+async function autoSyncTick() {
+  const indicator = document.getElementById('autoSyncStatus');
+  const prev = indicator.textContent;
+  indicator.textContent = 'Syncing…';
+  indicator.style.color = 'var(--c-primary-l)';
+  try {
+    const btn = document.getElementById('syncAllBtn');
+    const res  = await fetch(btn.dataset.url, {
+      method: 'POST',
+      headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.updated > 0) {
+      toast(data.message, 'ok');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      indicator.textContent = 'Auto-sync ON (every 30s)';
+      indicator.style.color = 'var(--c-accent)';
+    }
+  } catch (e) {
+    indicator.textContent = 'Auto-sync ON (every 30s)';
+    indicator.style.color = 'var(--c-accent)';
+  }
+}
+
+// Restore auto-sync preference on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('autoSync');
+  setAutoSync(saved === null ? true : saved === '1'); // default ON
+});
 </script>
 @endsection

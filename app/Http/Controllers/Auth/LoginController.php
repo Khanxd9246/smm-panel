@@ -65,6 +65,15 @@ class LoginController extends Controller
                 ->withErrors(['email' => 'Invalid email or password.']);
         }
 
+        // Block login if email not verified
+        if (!$user->hasVerifiedEmail()) {
+            // Resend verification so they don't have to find the old email
+            $user->sendEmailVerificationNotification();
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Please verify your email address before logging in. A new verification link has been sent.']);
+        }
+
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         $user->recordSuccessfulLogin($request->ip());

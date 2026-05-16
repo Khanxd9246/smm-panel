@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -74,11 +75,14 @@ class RegisterController extends Controller
             'ip'          => $request->ip(),
         ]);
 
-        // Log the user in
+        // Fire the Registered event — triggers the verification email automatically
+        event(new Registered($user));
+
+        // Log in but force them to verify before using the panel
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Welcome! Your account has been created.');
+        return redirect()->route('verification.notice')
+            ->with('success', 'Account created! Please check your email to verify your address.');
     }
 }

@@ -27,9 +27,11 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Mail\OrderPlaced;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class OrderService
 {
@@ -130,6 +132,15 @@ class OrderService
                 'service_id' => $service->id,
                 'total'      => $total,
             ]);
+
+            // Send order confirmation email (non-blocking)
+            try {
+                if ($user->email) {
+                    Mail::to($user->email)->queue(new OrderPlaced($order->load('service')));
+                }
+            } catch (\Throwable $e) {
+                Log::warning("OrderService: could not queue OrderPlaced email for order#{$order->id}: " . $e->getMessage());
+            }
 
             return $order;
         });

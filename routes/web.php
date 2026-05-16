@@ -54,7 +54,24 @@ Route::post('/password/update', [ResetPasswordController::class, 'reset'])
 // AUTHENTICATED USER ROUTES
 // ────────────────────────────────────────────────────────────────────────────
 
-Route::middleware(['auth'])->group(function () {
+// ── Email verification ────────────────────────────────────────────────────
+Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', function () {
+        return view('auth.verify-email');
+    })->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}',
+        [\App\Http\Controllers\Auth\VerifyEmailController::class, '__invoke'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
+    Route::post('/email/verification-notification',
+        [\App\Http\Controllers\Auth\EmailVerificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
