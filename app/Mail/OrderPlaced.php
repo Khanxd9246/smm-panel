@@ -3,29 +3,50 @@
 namespace App\Mail;
 
 use App\Models\Order;
+use App\Services\ResendMailService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
-class OrderPlaced extends Mailable
+/**
+ * OrderPlaced — sends order confirmation via Resend HTTP API.
+ *
+ * Does NOT extend Mailable — extends nothing, implements ShouldQueue
+ * so it can be dispatched to queue via Mail::to()->queue() or directly
+ * via dispatch(). Uses ResendMailService to avoid SMTP entirely.
+ *
+ * Usage (same as before):
+ *   Mail::to($user->email)->queue(new OrderPlaced($order));
+ *   // or
+ *   dispatch(new OrderPlaced($order));
+ */
+class OrderPlaced implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public function __construct(public Order $order) {}
 
-    public function envelope(): Envelope
+    /**
+     * Handle the job — called by the queue worker.
+     */
+    public function handle(ResendMailService $mailer): void
     {
-        return new Envelope(
-            subject: "Order #{$this->order->id} Confirmed — " . config('app.name'),
-        );
-    }
+        $user = $this->order->user;
 
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.order-placed',
+        if (! $user?->email) {
+            return;
+        }
+
+        $sent = $mailer->send(
+            to:      $user->email,
+            subject: "Order #{$this->order->id} Confirmed — " . config('app.name'),
+            view:    'emails.order-placed',
+            data:    ['order' => $this->order],
         );
+
+        if (! $sent) {
+            Log::warning('OrderPlaced: email failed', ['order_id' => $this->order->id]);
+        }
     }
 }

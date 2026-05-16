@@ -31,7 +31,7 @@ use App\Mail\OrderPlaced;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+
 
 class OrderService
 {
@@ -133,13 +133,13 @@ class OrderService
                 'total'      => $total,
             ]);
 
-            // Send order confirmation email (non-blocking)
+            // Send order confirmation email via Resend HTTP API (non-blocking)
             try {
                 if ($user->email) {
-                    Mail::to($user->email)->queue(new OrderPlaced($order->load('service')));
+                    dispatch(new OrderPlaced($order->load('service')));
                 }
             } catch (\Throwable $e) {
-                Log::warning("OrderService: could not queue OrderPlaced email for order#{$order->id}: " . $e->getMessage());
+                Log::warning("OrderService: could not dispatch OrderPlaced email for order#{$order->id}: " . $e->getMessage());
             }
 
             return $order;
