@@ -406,7 +406,7 @@ class AdminController extends Controller
 
         DB::table('payment_logs')
             ->where('transaction_id', $transaction->id)
-            ->update(['status' => 'failed', 'error_message' => $validated['reason']]);
+            ->update(['status' => 'failed', 'error_message' => $validated['reason'], 'updated_at' => now()]);
 
         return back()->with('success', 'Transaction rejected.');
     }
