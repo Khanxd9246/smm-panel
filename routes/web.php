@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\GoogleController;
 
 // ────────────────────────────────────────────────────────────────────────────
 // PUBLIC ROUTES
@@ -49,6 +50,10 @@ Route::get('/password/reset/{token}', fn ($token) => view('auth.passwords.reset'
     ->name('password.reset');
 Route::post('/password/update', [ResetPasswordController::class, 'reset'])
     ->middleware('throttle:5,1')->name('password.update');
+
+// ── Google OAuth Routes ─────────────────────────────────────────────────────
+Route::get('/auth/google',          [GoogleController::class, 'redirect'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
 // ────────────────────────────────────────────────────────────────────────────
 // AUTHENTICATED USER ROUTES
