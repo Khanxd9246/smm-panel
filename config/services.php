@@ -1,10 +1,6 @@
 <?php
 
 return [
-    // Brevo HTTP API — set BREVO_API_KEY=xkeysib-xxx in Railway Variables
-    // Get it from: brevo.com → SMTP & API → API Keys tab
-    'brevo'    => ['api_key' => env('BREVO_API_KEY')],
-
     'mailgun'  => ['domain' => env('MAILGUN_DOMAIN'), 'secret' => env('MAILGUN_SECRET'), 'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'), 'scheme' => 'https'],
     'postmark' => ['token' => env('POSTMARK_TOKEN')],
     'ses'      => ['key' => env('AWS_ACCESS_KEY_ID'), 'secret' => env('AWS_SECRET_ACCESS_KEY'), 'region' => env('AWS_DEFAULT_REGION', 'us-east-1')],
@@ -24,5 +20,11 @@ return [
         'base_url' => env('AI_BASE_URL', 'https://api.groq.com/openai/v1'),
         'model'    => env('AI_MODEL',    'llama-3.3-70b-versatile'),
         'enabled'  => env('AI_ENABLED', true),
+    ],
+
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI'),
     ],
 ];
