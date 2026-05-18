@@ -14,7 +14,6 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\FundAccountController as AdminFundAccountController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 
@@ -42,12 +41,6 @@ Route::get('/register',  [RegisterController::class, 'showRegistrationForm'])->n
 Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:5,1');
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-// ── Google OAuth ──────────────────────────────────────────────────────────
-Route::middleware('guest')->group(function () {
-    Route::get('/auth/google',          [GoogleController::class, 'redirect'])->name('auth.google');
-    Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
-});
 
 Route::get('/password/reset', fn () => view('auth.passwords.email'))->name('password.request');
 Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])
@@ -123,7 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
-    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard'); // full name: admin.dashboard
     Route::get('settings',  [AdminController::class, 'settings'])->name('settings');
     Route::post('settings', [AdminController::class, 'settingsSave'])->name('settings.save');
     // ── Appearance (Phase 2) ─────────────────────────────────────────────────
@@ -144,9 +137,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Fund Requests
     Route::prefix('fund-requests')->name('fund-requests.')->group(function () {
-        Route::get('/',                      [\App\Http\Controllers\Admin\PaymentAccountController::class, 'fundRequests'])->name('index');
-        Route::post('{fundRequest}/approve', [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
-        Route::post('{fundRequest}/reject',  [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
+        Route::get('/',                          [\App\Http\Controllers\Admin\PaymentAccountController::class, 'fundRequests'])->name('index');
+        Route::post('{fundRequest}/approve',     [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
+        Route::post('{fundRequest}/reject',      [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
+    });
     });
 
     // API Providers
