@@ -47,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'referral_code',
         'referred_by',
         'telegram_user_id',
+        'google_id',
+        'email_verified_at',
     ];
 
     protected $hidden = [
