@@ -141,7 +141,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('{fundRequest}/approve',     [\App\Http\Controllers\Admin\PaymentAccountController::class, 'approve'])->name('approve');
         Route::post('{fundRequest}/reject',      [\App\Http\Controllers\Admin\PaymentAccountController::class, 'reject'])->name('reject');
     });
-    });
 
     // API Providers
     Route::prefix('providers')->name('providers.')->group(function () {
