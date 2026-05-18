@@ -12,8 +12,7 @@ use Laravel\Socialite\Facades\Socialite;
 class GoogleController extends Controller
 {
     /**
-     * Redirect to Google OAuth.
-     * Works for both login and register — Google handles both.
+     * Redirect to Google OAuth consent screen.
      */
     public function redirect()
     {
@@ -29,46 +28,47 @@ class GoogleController extends Controller
             $googleUser = Socialite::driver('google')->user();
         } catch (\Throwable $e) {
             Log::warning('Google OAuth callback failed', ['error' => $e->getMessage()]);
-            return redirect()->route('login')
+            return redirect('/login')
                 ->withErrors(['email' => 'Google sign-in failed. Please try again.']);
         }
 
-        // Find existing user by google_id first, then fall back to email
+        // Find by google_id first, then fall back to matching email
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email', $googleUser->getEmail())->first();
 
         if ($user) {
-            // Existing user — update google_id if not set, then log in
+            // Link google_id if this is the first Google login for an email-registered user
             if (! $user->google_id) {
                 $user->update(['google_id' => $googleUser->getId()]);
             }
 
-            // If account is banned
             if ($user->status === 'banned') {
-                return redirect()->route('login')
+                return redirect('/login')
                     ->withErrors(['email' => 'This account has been suspended. Contact support.']);
             }
 
-            Auth::login($user, true);
-            return redirect()->intended(route('dashboard'));
+            Auth::login($user, remember: true);
+
+            // Use explicit path — route('dashboard') is ambiguous (both user + admin
+            // routes share the name; Laravel resolves to whichever was registered last)
+            return redirect('/dashboard');
         }
 
-        // New user — create account
-        // Google already verified the email so mark it verified immediately
+        // New user — create and auto-verify (Google already verified the email)
         $user = User::create([
             'name'              => $googleUser->getName(),
             'email'             => $googleUser->getEmail(),
             'google_id'         => $googleUser->getId(),
-            'password'          => bcrypt(bin2hex(random_bytes(16))), // random, unusable password
-            'email_verified_at' => now(), // Google email is already verified
+            'password'          => bcrypt(bin2hex(random_bytes(16))),
+            'email_verified_at' => now(),
             'referral_code'     => strtoupper(bin2hex(random_bytes(6))),
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user, true);
+        Auth::login($user, remember: true);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Welcome to ' . config('app.name') . '! Your account has been created.');
+        return redirect('/dashboard')
+            ->with('success', 'Welcome to ' . config('app.name') . '! Your account has been created. 🎉');
     }
 }
